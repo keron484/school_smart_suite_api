@@ -17,8 +17,8 @@ use App\Models\SemesterTimetable\SemesterTimetableSlot;
 use App\Models\SemesterTimetable\SemesterTimetableVersion;
 use App\Models\SpecialtyHall;
 use App\Models\SemesterTimetable\SemesterTimetable;
+use App\Models\Teacher\TeacherSpecialty;
 use App\Models\TeacherCoursePreference;
-use App\Models\TeacherSpecailtyPreference;
 use App\Schedular\SemesterTimetable\Engine\SchedularEngine;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
@@ -183,7 +183,7 @@ class GeneratePreferenceSemesterTimetable implements ShouldQueue
     }
     private function getTeachers(string $branchId,  object $specialty)
     {
-        $teachers = TeacherSpecailtyPreference::where('school_branch_id', $branchId)
+        $teachers = TeacherSpecialty::where('school_branch_id', $branchId)
             ->where('specialty_id', $specialty->id)
             ->with(['teacher' => fn($q) => $q->where('status', 'active')])
             ->get();

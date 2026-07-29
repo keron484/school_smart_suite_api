@@ -8,6 +8,8 @@ use App\Models\ExamTimetable\ExamSessionHall;
 use App\Models\Course\CourseSpecialty;
 use App\Traits\GeneratesUuid;
 use App\Models\Courses;
+use App\Models\Teacher\TeacherSpecialty;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -15,7 +17,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Specialty extends Model
 {
-    use HasFactory, GeneratesUuid;
+    use HasFactory, GeneratesUuid, HasUuids;
 
     protected $fillable = [
         'department_id',
@@ -34,7 +36,7 @@ class Specialty extends Model
     ];
     public $keyType = 'string';
     public $table = 'specialties';
-    public $incrementing = 'false';
+    public $incrementing = false;
 
     public function examJcSessionHall(): HasMany
     {
@@ -55,6 +57,18 @@ class Specialty extends Model
             ->using(CourseSpecialty::class)
             ->withPivot(['id'])
             ->withTimestamps();
+    }
+
+    public function teachers(){
+         return $this->belongsToMany(
+             Teacher::class,
+             'teacher_specialty_preferences',
+             'specialty_id',
+             'teacher_id'
+         )
+         ->using(TeacherSpecialty::class)
+         ->withPivot(['id', 'school_branch_id'])
+         ->withTimestamps();
     }
     public function resitExamRef(): HasMany
     {
@@ -134,9 +148,9 @@ class Specialty extends Model
     {
         return $this->hasMany(Exams::class);
     }
-    public function TeacherSpecailtyPreference(): HasMany
+    public function teacherSpecialty(): HasMany
     {
-        return $this->hasMany(TeacherSpecailtyPreference::class);
+        return $this->hasMany(TeacherSpecialty::class);
     }
     public function school(): BelongsTo
     {

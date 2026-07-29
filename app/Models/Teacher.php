@@ -7,6 +7,7 @@ use App\Models\ExamTimetable\Invigilator;
 use App\Models\Job\SystemJob;
 use App\Models\SemesterTimetable\SemesterTimetableSlot;
 use App\Models\OTP;
+use App\Models\Teacher\TeacherSpecialty;
 use App\Traits\Currency;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -120,9 +121,9 @@ class Teacher extends Model
         return $this->belongsTo(Schoolbranches::class);
     }
 
-    public function specialtyPreference(): HasMany
+    public function teacherSpecialty(): HasMany
     {
-        return $this->hasMany(TeacherSpecailtyPreference::class, 'teacher_id');
+        return $this->hasMany(TeacherSpecialty::class, 'teacher_id');
     }
     public function courses(): HasMany
     {
@@ -150,6 +151,18 @@ class Teacher extends Model
     public function semesterTimetableSlot(): HasMany
     {
         return $this->hasMany(SemesterTimetableSlot::class);
+    }
+
+    public function specialties()
+    {
+        return $this->belongsToMany(
+            Specialty::class,
+            'teacher_specialty_preferences',
+            'teacher_id',
+            'specialty_id'
+        )->using(TeacherSpecialty::class)
+            ->withPivot(['id', 'school_branch_id'])
+            ->withTimestamps();
     }
     public function qualifications()
     {

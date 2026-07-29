@@ -1,18 +1,17 @@
 <?php
 
-namespace App\Models;
+namespace App\Models\Teacher;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\Pivot;
 use App\Models\Teacher;
-use App\Traits\GeneratesUuid;
+use App\Models\Specialty;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Support\Str;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class TeacherSpecailtyPreference extends Model
+class TeacherSpecialty extends Pivot
 {
-    use HasFactory, GeneratesUuid;
+    use HasFactory, HasUuids;
 
     protected $fillable = [
         'school_branch_id',
@@ -24,12 +23,13 @@ class TeacherSpecailtyPreference extends Model
     public $table = 'teacher_specialty_preferences';
     public $incrementing = false;
 
-    public function teacher(): BelongsTo {
+    public function teacher(): BelongsTo
+    {
         return $this->belongsTo(Teacher::class, 'teacher_id');
     }
 
-    public function specailty(): BelongsTo {
+    public function specialty(): BelongsTo
+    {
         return $this->belongsTo(Specialty::class, 'specialty_id');
     }
-
 }

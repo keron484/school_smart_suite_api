@@ -11,6 +11,10 @@ return new class extends Migration
      */
     public function up(): void
     {
+        Schema::table('system_jobs', function (Blueprint $table) {
+            $table->uuid('category_id')->nullable();
+            $table->foreign('category_id')->references('id')->on('system_job_categories');
+        });
         Schema::table('system_job_events', function (Blueprint $table) {
             $table->string('system_job_id');
             $table->foreign('system_job_id')->references('id')->on('system_jobs');

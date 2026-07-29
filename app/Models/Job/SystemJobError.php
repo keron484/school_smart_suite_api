@@ -5,19 +5,20 @@ namespace App\Models\Job;
 use MongoDB\Laravel\Eloquent\Model;
 use MongoDB\Laravel\Eloquent\Builder;
 
-class SystemJobEvent extends Model
+class SystemJobError extends Model
 {
     protected $connection = 'mongodb';
-    protected $table = 'system_job_events';
+    protected $table = 'system_job_errors';
     protected $primaryKey = '_id';
     public $incrementing = false;
     protected $keyType = 'string';
+
     protected $fillable = [
         'job_id',
         'school_branch_id',
-        'type',
-        'stage',
+        'code',
         'message',
+        'stage',
         'data',
     ];
 
@@ -28,10 +29,9 @@ class SystemJobEvent extends Model
         ];
     }
 
-
     public function getTable()
     {
-        return 'system_job_events';
+        return 'system_job_errors';
     }
 
     public function newEloquentBuilder($query)

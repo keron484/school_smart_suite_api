@@ -33,8 +33,6 @@ class SpecialtyService
             }
 
             $specialty = new Specialty();
-            $specialtyId = Str::uuid();
-            $specialty->id = $specialtyId;
             $specialty->school_branch_id = $currentSchool->id;
             $specialty->department_id = $data["department_id"];
             $specialty->specialty_name = $data["specialty_name"];
@@ -69,7 +67,7 @@ class SpecialtyService
             );
         }
     }
-    public function updateSpecialty(array $data, $currentSchool, $specialtyId, $authAdmin)
+    public function updateSpecialty(array $data, object $currentSchool, string $specialtyId, object $authAdmin)
     {
         try {
             $specialty = Specialty::where("school_branch_id", $currentSchool->id)
@@ -121,7 +119,7 @@ class SpecialtyService
             );
         }
     }
-    public function deleteSpecialty($currentSchool, $specialtyId, $authAdmin)
+    public function deleteSpecialty(object $currentSchool, string $specialtyId, object $authAdmin)
     {
         try {
             $specialty = Specialty::where("school_branch_id", $currentSchool->id)
@@ -162,7 +160,7 @@ class SpecialtyService
             );
         }
     }
-    public function getSpecialties($currentSchool)
+    public function getSpecialties(object $currentSchool)
     {
         $specialtyData = Specialty::where("school_branch_id", $currentSchool->id)
             ->with(['level'])
@@ -180,10 +178,19 @@ class SpecialtyService
 
         return $specialtyData;
     }
-    public function getSpecailtyDetails($currentSchool, $specialtyId)
+    public function getSpecailtyDetails(object $currentSchool, string $specialtyId)
     {
         $specialty = Specialty::where("school_branch_id", $currentSchool->id)
-            ->with(['level', 'department'])
+            ->with([
+                'level',
+                'department',
+            ])
+            ->withCount([
+                'courses as courses_count',
+                'specialtyHall as halls_count',
+                'student as students_count',
+                'teachers as teachers_count'
+            ])
             ->find($specialtyId);
 
         if (!$specialty) {
@@ -196,9 +203,14 @@ class SpecialtyService
             );
         }
 
+        $specialty->total_halls = $specialty->halls_count ?? 0;
+        $specialty->total_students = $specialty->students_count ?? 0;
+        $specialty->total_teachers = $specialty->teachers_count ?? 0;
+        $specialty->total_courses = $specialty->courses_count ?? 0;
+
         return $specialty;
     }
-    public function deactivateSpecialty($specialtyId, $currentSchool, $authAdmin)
+    public function deactivateSpecialty(string $specialtyId, object $currentSchool, object $authAdmin)
     {
         try {
             $specialty = Specialty::where("school_branch_id", $currentSchool->id)
@@ -246,7 +258,7 @@ class SpecialtyService
             );
         }
     }
-    public function activateSpecialty($specialtyId, $currentSchool, $authAdmin)
+    public function activateSpecialty(string $specialtyId, object $currentSchool, object $authAdmin)
     {
         try {
             $specialty = Specialty::where("school_branch_id", $currentSchool->id)
@@ -294,7 +306,7 @@ class SpecialtyService
             );
         }
     }
-    public function bulkUpdateSpecialty($updateDataList, $currentSchool, $authAdmin)
+    public function bulkUpdateSpecialty(array $updateDataList, object $currentSchool, object $authAdmin)
     {
         $result = [];
         try {
@@ -364,7 +376,7 @@ class SpecialtyService
             );
         }
     }
-    public function bulkDeactivateSpecialty($specialtyIds, $currentSchool, $authAdmin)
+    public function bulkDeactivateSpecialty(array $specialtyIds, object $currentSchool, object $authAdmin)
     {
         $result = [];
         try {
@@ -431,7 +443,7 @@ class SpecialtyService
             );
         }
     }
-    public function bulkActivateSpecialty(array $specialtyIds, $currentSchool, $authAdmin)
+    public function bulkActivateSpecialty(array $specialtyIds, object $currentSchool, object $authAdmin)
     {
         $result = [];
         try {
@@ -498,7 +510,7 @@ class SpecialtyService
             );
         }
     }
-    public function bulkDeleteSpecialty($specialtyIds, $currentSchool, $authAdmin)
+    public function bulkDeleteSpecialty(array $specialtyIds, object $currentSchool, object $authAdmin)
     {
         $result = [];
         try {

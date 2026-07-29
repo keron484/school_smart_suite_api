@@ -52,3 +52,6 @@ Route::delete('/teacher/avatar/delete', [TeacherController::class, 'deleteProfil
 
 Route::get('/teachers/specialty/{specialtyId}', [TeacherController::class, 'getTeacherBySpecialtyPreference'])
     ->name('teachers.specialty.preference');
+
+Route::post('/import', [TeacherController::class, 'importTeacher'])
+->name('teacher.import');

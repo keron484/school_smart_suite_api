@@ -44,32 +44,31 @@ return new class extends Migration
             $table->timestamp('failed_at')->useCurrent();
         });
 
+        Schema::create('system_job_categories', function (Blueprint $table) {
+            $table->uuid('id')->primary();
+            $table->string('name', 150);
+            $table->text('description')->nullable();
+            $table->enum('status', ['active', 'inactive'])->default('active');
+            $table->timestamps();
+        });
+
         Schema::create('system_jobs', function (Blueprint $table) {
             $table->string('id')->primary()->index();
             $table->string('type', 150);
             $table->string('context_type');
             $table->string('context_id', 64);
-            $table->string('initiated_by_id', 64);
+            $table->uuid('initiated_by_id');
             $table->string('initiated_by_type');
+            $table->string('status', 30)->default('QUEUED');
+            $table->string('stage', 150)->nullable();
             $table->string('queue', 150);
-            $table->enum('status', ['QUEUED', 'PROCESSING', 'COMPLETED', 'PARTIAL_SUCCESS', 'FAILED', 'CANCELLED'])->default('QUEUED');
-            $table->string('stage', 150);
+            // $table->enum('status', ['QUEUED', 'PROCESSING', 'COMPLETED', 'PARTIAL_SUCCESS', 'FAILED', 'CANCELLED'])->default('QUEUED');
+            // $table->string('stage', 150);
             $table->unsignedTinyInteger('progress')->default(0);
+            $table->unsignedTinyInteger('attempts')->default(0);
             $table->unsignedTinyInteger('max_attempts')->default(3);
-            $table->json('payload')->nullable();
-            $table->json('out_put')->nullable();
-            $table->string('error_code')->nullable();
-            $table->text('error_message')->nullable();
             $table->timestamp('started_at');
             $table->timestamp('finished_at');
-            $table->timestamps();
-        });
-
-        Schema::create('system_job_events', function (Blueprint $table) {
-            $table->string('id')->primary()->index();
-            $table->enum('status', ['STATUS_CHANGED', 'STAGE_CHANGED', 'PROGRESS_UPDATED', 'RETRY', 'ERROR']);
-            $table->text('message')->nullable();
-            $table->json('meta')->nullable();
             $table->timestamps();
         });
     }
@@ -82,5 +81,7 @@ return new class extends Migration
         Schema::dropIfExists('jobs');
         Schema::dropIfExists('job_batches');
         Schema::dropIfExists('failed_jobs');
+        Schema::dropIfExists('system_job_categories');
+        Schema::dropIfExists('system_jobs');
     }
 };

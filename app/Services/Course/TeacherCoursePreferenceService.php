@@ -3,7 +3,6 @@
 namespace App\Services\Course;
 
 use App\Models\TeacherCoursePreference;
-use App\Models\TeacherSpecailtyPreference;
 use App\Exceptions\AppException;
 use App\Models\Courses;
 use App\Models\Course\CourseSpecialty;
@@ -13,6 +12,7 @@ use Illuminate\Support\Str;
 use App\Models\Teacher;
 use App\Events\Analytics\OperationalAnalyticsEvent;
 use App\Constant\Analytics\Operational\OperationalAnalyticsEvent as OperationalEvent;
+use App\Models\Teacher\TeacherSpecialty;
 
 class TeacherCoursePreferenceService
 {
@@ -55,7 +55,7 @@ class TeacherCoursePreferenceService
 
             $wasUnassigned = $teacher->course_assignment_status === 'unassigned';
 
-            $allowedSpecialties = TeacherSpecailtyPreference::where('school_branch_id', $schoolBranchId)
+            $allowedSpecialties = TeacherSpecialty::where('school_branch_id', $schoolBranchId)
                 ->where('teacher_id', $teacherId)
                 ->pluck('specialty_id')
                 ->toArray();
@@ -102,14 +102,6 @@ class TeacherCoursePreferenceService
             TeacherCoursePreference::insert($insertData);
 
 
-            $assignedCount = count($insertData);
-
-            $teacher->increment('num_assigned_courses', $assignedCount);
-
-            if ($wasUnassigned && $assignedCount > 0) {
-                $teacher->course_assignment_status = 'assigned';
-                $teacher->save();
-            }
 
             // AdminActionEvent::dispatch([
             //     "permissions"  => ["schoolAdmin.teacherCoursePreference.assign"],
@@ -142,7 +134,6 @@ class TeacherCoursePreferenceService
 
             return [
                 'teacher_id'       => $teacherId,
-                'course_count'     => $assignedCount,
                 'school_branch_id' => $schoolBranchId,
                 'status_updated'   => $wasUnassigned,
             ];
@@ -152,7 +143,7 @@ class TeacherCoursePreferenceService
     {
         $schoolBranchId = $currentSchool->id;
 
-        $preferredSpecialtyIds = TeacherSpecailtyPreference::where('school_branch_id', $schoolBranchId)
+        $preferredSpecialtyIds = TeacherSpecialty::where('school_branch_id', $schoolBranchId)
             ->where('teacher_id', $teacherId)
             ->pluck('specialty_id')
             ->toArray();
@@ -259,14 +250,6 @@ class TeacherCoursePreferenceService
                 ->whereIn('course_id', $assignedCourseIds)
                 ->delete();
 
-            $teacher->decrement('num_assigned_courses', $deletedCount);
-
-            if ($teacher->num_assigned_courses <= 0) {
-                $teacher->num_assigned_courses = 0;
-                $teacher->course_assignment_status = 'unassigned';
-                $teacher->save();
-            }
-
             $courseNames = Courses::whereIn('id', $assignedCourseIds)
                 ->pluck('course_title', 'id')
                 ->map(fn($name, $id) => "$name (ID: $id)")
@@ -352,7 +335,7 @@ class TeacherCoursePreferenceService
                 ->pluck('specialty_id')
                 ->toArray();
 
-            $teacherSpecialties = TeacherSpecailtyPreference::where('school_branch_id', $schoolBranchId)
+            $teacherSpecialties = TeacherSpecialty::where('school_branch_id', $schoolBranchId)
                 ->where('teacher_id', $newTeacherId)
                 ->pluck('specialty_id')
                 ->toArray();
@@ -396,9 +379,7 @@ class TeacherCoursePreferenceService
             }
 
             $oldTeacherIdToUse = $oldTeacherId ?? $currentAssignmentsList->first()->teacher_id;
-            $oldTeacher = Teacher::where('id', $oldTeacherIdToUse)
-                ->where('school_branch_id', $schoolBranchId)
-                ->first();
+
 
             $alreadyAssigned = TeacherCoursePreference::where('school_branch_id', $schoolBranchId)
                 ->where('course_id', $courseId)
@@ -419,18 +400,6 @@ class TeacherCoursePreferenceService
                 ->where('teacher_id', $oldTeacherIdToUse)
                 ->delete();
 
-            if ($oldTeacher) {
-                $oldTeacher->decrement('num_assigned_courses', 1);
-
-                $oldTeacherRemainingCourses = TeacherCoursePreference::where('school_branch_id', $schoolBranchId)
-                    ->where('teacher_id', $oldTeacherIdToUse)
-                    ->count();
-
-                if ($oldTeacherRemainingCourses == 0) {
-                    $oldTeacher->course_assignment_status = 'unassigned';
-                    $oldTeacher->save();
-                }
-            }
 
             TeacherCoursePreference::create([
                 'id' => Str::uuid()->toString(),
@@ -438,14 +407,6 @@ class TeacherCoursePreferenceService
                 'teacher_id' => $newTeacherId,
                 'school_branch_id' => $schoolBranchId,
             ]);
-
-            $newTeacher->increment('num_assigned_courses', 1);
-
-            if ($newTeacher->course_assignment_status === 'unassigned') {
-                $newTeacher->course_assignment_status = 'assigned';
-                $newTeacher->save();
-            }
-
             return [
                 'course_id' => $courseId,
                 'old_teacher_id' => $oldTeacherIdToUse,

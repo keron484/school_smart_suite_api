@@ -18,7 +18,6 @@ use App\Models\SemesterTimetable\SemesterTimetableVersion;
 use App\Models\SemesterTimetable\SemesterTimetableError;
 use App\Models\SpecialtyHall;
 use App\Models\TeacherCoursePreference;
-use App\Models\TeacherSpecailtyPreference;
 use App\Models\Teacher;
 use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
@@ -29,6 +28,7 @@ use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Log;
 use App\Models\SemesterTimetable\SemesterTimetable;
+use App\Models\Teacher\TeacherSpecialty;
 use Illuminate\Support\Str;
 use App\Schedular\SemesterTimetable\Engine\SchedularEngine;
 use Throwable;
@@ -219,7 +219,7 @@ class GenerateFixedSemesterTimetable implements ShouldQueue
     }
     private function getTeachers(string $branchId, object $specialty): Collection
     {
-        $teacherPreferences = TeacherSpecailtyPreference::where('school_branch_id', $branchId)
+        $teacherPreferences = TeacherSpecialty::where('school_branch_id', $branchId)
             ->where('specialty_id', $specialty->id)
             ->with(['teacher' => fn($q) => $q->where('status', 'active')])
             ->get();

@@ -3,12 +3,17 @@
 namespace App\Http\Controllers\Teacher;
 
 use App\Http\Controllers\Controller;
+use App\Jobs\Teacher\TeacherImportJob;
 use Illuminate\Http\Request;
 use App\Http\Requests\Auth\UpdateProfilePictureRequest;
 use App\Services\ApiResponseService;
 use App\Http\Requests\Teacher\UpdateTeacherRequest;
-use App\Http\Requests\Teacher\AddSpecialtyPreferenceRequest;
+// use App\Http\Requests\Teacher\AddSpecialtyPreferenceRequest;
+use App\Http\Requests\Teacher\ImportTeacherRequest;
 use App\Http\Requests\Teacher\TeacherIdRequest;
+use App\Models\Job\SystemJob;
+use App\Models\Job\SystemJobCategory;
+use App\Models\Teacher;
 use App\Services\Teacher\TeacherService;
 
 class TeacherController extends Controller
@@ -52,7 +57,7 @@ class TeacherController extends Controller
         $teacherDetails = $this->teacherService->getTeacherDetails($teacherId);
         return ApiResponseService::success("Teacher Details Fetched Succesfully", $teacherDetails, null, 200);
     }
-    public function assignTeacherSpecailtyPreference(AddSpecialtyPreferenceRequest $request)
+    public function assignTeacherSpecailtyPreference(Request $request)
     {
         $currentSchool = $request->attributes->get('currentSchool');
         $assignTeacherSpecailtyPreference = $this->teacherService->addSpecailtyPreference($request->specailties_preference, $currentSchool);
@@ -115,6 +120,50 @@ class TeacherController extends Controller
         $currentSchool = $request->attributes->get('currentSchool');
         $getTeachersBySpecialty = $this->teacherService->getTeachersBySpecialtyPreference($specialtyId, $currentSchool);
         return ApiResponseService::success("Teachers Fetched Successfully", $getTeachersBySpecialty, null, 200);
+    }
+
+    public function importTeacher(ImportTeacherRequest $request)
+    {
+        $authUser = $this->resolveUser();
+        $currentSchool = $request->attributes->get('currentSchool');
+        $category = SystemJobCategory::where('name', 'teacher')->firstOrFail();
+
+        $filePath = $request->file('file')->store(
+            "imports/teachers/{$currentSchool->id}",
+            'r2'
+        );
+
+        $payload = $request->validated();
+        $payload['file_path'] = $filePath;
+        unset($payload['file']);
+
+        $systemJob = SystemJob::create([
+            'type'              => 'Teacher Import',
+            'context_type'      => Teacher::class,
+            'stage'             => 'Queued',
+            'status'            => 'queued',
+            'context_id'        => $currentSchool->id,
+            'initiated_by_id'   => $authUser->id,
+            'category_id'       => $category->id,
+            'initiated_by_type' => $authUser::class,
+            'queue'             => 'database',
+            'started_at'        => now()
+        ]);
+
+        TeacherImportJob::dispatch(
+            $authUser,
+            $currentSchool,
+            $category,
+            $systemJob,
+            $payload
+        );
+
+        return ApiResponseService::success(
+            'Teacher Importation Process Initiated Successfully',
+            null,
+            null,
+            200
+        );
     }
     protected function resolveUser()
     {

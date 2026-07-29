@@ -200,8 +200,8 @@ return Application::configure(basePath: dirname(__DIR__))
             Route::middleware(['auth:sanctum', IdentifyTenant::class])->prefix('api/v1/student-promotion')
                 ->group(base_path("routes/Student/StudentPromotion.php"));
 
-            Route::middleware(['auth:sanctum', IdentifyTenant::class])->prefix('api/v1/teacher-preference')
-                ->group(base_path("routes/Teacher/TeacherSpecialtyPerference.php"));
+            Route::middleware(['auth:sanctum', IdentifyTenant::class])->prefix('api/v1/teacher-specialty')
+                ->group(base_path("routes/Teacher/TeacherSpecialty.php"));
 
             Route::prefix('api/v1/school-grade')
                 ->group(base_path("routes/Grade/SchoolGrades.php"));
@@ -321,6 +321,9 @@ return Application::configure(basePath: dirname(__DIR__))
             Route::middleware(['auth:sanctum', IdentifyTenant::class])
                 ->prefix('api/v1/semester-timetable-helpers')
                 ->group(base_path('routes/SemesterTimetable/SemesterTimetableHelper.php'));
+
+            Route::middleware(['auth:sanctum', IdentifyTenant::class])->prefix('api/v1/system-jobs')
+                ->group(base_path('routes/Job/Job.php'));
 
             Route::middleware(['auth:sanctum'])
                 ->prefix('api/v1/qualification')
