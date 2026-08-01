@@ -22,13 +22,6 @@ class SystemJobError extends Model
         'data',
     ];
 
-    protected function casts(): array
-    {
-        return [
-            'data' => 'array',
-        ];
-    }
-
     public function getTable()
     {
         return 'system_job_errors';

@@ -3,7 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Job\JobController;
 
-Route::get('/jobs', [JobController::class, 'getJobs'])->name('get.jobs');
-Route::get('/{jobId}', [JobController::class, 'getJobDetails'])->name('get.jobs');
-Route::delete('/delete', [JobController::class, 'deleteJob'])->name('get.jobs');
-Route::get('/errors', [JobController::class, 'getJobErrors'])->name('get.jobs');
+Route::post('/jobs', [JobController::class, 'getJobs'])->name('get.jobs');
+Route::get('/{jobId}', [JobController::class, 'getJobDetails'])->name('get.job');
+Route::delete('/{jobId}/delete', [JobController::class, 'deleteJob'])->name('delete.jobs');
+Route::get('/{jobId}/errors', [JobController::class, 'getJobErrors'])->name('get.jobErrors');

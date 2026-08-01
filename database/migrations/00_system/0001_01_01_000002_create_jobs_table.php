@@ -64,7 +64,10 @@ return new class extends Migration
             $table->string('queue', 150);
             // $table->enum('status', ['QUEUED', 'PROCESSING', 'COMPLETED', 'PARTIAL_SUCCESS', 'FAILED', 'CANCELLED'])->default('QUEUED');
             // $table->string('stage', 150);
-            $table->unsignedTinyInteger('progress')->default(0);
+            $table->unsignedTinyInteger('total_items')->default(0);
+            $table->unsignedTinyInteger('processed_items')->default(0);
+            $table->unsignedTinyInteger('successful_items')->default(0);
+            $table->unsignedTinyInteger('failed_items')->default(0);
             $table->unsignedTinyInteger('attempts')->default(0);
             $table->unsignedTinyInteger('max_attempts')->default(3);
             $table->timestamp('started_at');

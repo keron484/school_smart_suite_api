@@ -7,13 +7,6 @@ use Illuminate\Foundation\Http\FormRequest;
 class CreateTeacherRequest extends FormRequest
 {
     /**
-     * Determine if the user is authorized to make this request.
-     *
-     * @return bool
-     */
-
-
-    /**
      * Get the validation rules that apply to the request.
      *
      * @return array
@@ -25,7 +18,7 @@ class CreateTeacherRequest extends FormRequest
             'first_name' => 'required|string',
             "last_name" => 'required|string',
             'email' => 'required|email|string',
-            'phone' => 'required|string',
+            'phone' => 'sometimes|nullable|string',
             'address' => 'sometimes|nullable|string',
             'gender_id' => 'required|string|exists:genders,id',
             'level_ids' => 'required|array|min:1',

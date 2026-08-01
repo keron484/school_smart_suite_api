@@ -6,13 +6,6 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class GetJobRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
-    public function authorize(): bool
-    {
-        return false;
-    }
 
     /**
      * Get the validation rules that apply to the request.
@@ -22,7 +15,9 @@ class GetJobRequest extends FormRequest
     public function rules(): array
     {
         return [
-            //
+           'category' => ['nullable', 'sometimes', 'string', 'max:150'],
+           "status" => ['nullable', 'sometimes', 'string', 'in:completed,queued,failed,inprogress'],
+           "group_by" => ['nullable', 'sometimes', 'string', 'in:status,stage,category'],
         ];
     }
 }

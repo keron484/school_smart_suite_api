@@ -22,15 +22,15 @@ class SystemJobDetail extends Model
         'metadata',
     ];
 
-    protected function casts(): array
-    {
-        return [
-            'input' => 'array',
-            'summary' => 'array',
-            'result' => 'array',
-            'metadata' => 'array',
-        ];
-    }
+    // protected function casts(): array
+    // {
+    //     return [
+    //         'input' => 'array',
+    //         'summary' => 'array',
+    //         'result' => 'array',
+    //         'metadata' => 'array',
+    //     ];
+    // }
 
 
     public function getTable()
