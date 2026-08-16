@@ -12,3 +12,4 @@ Route::get('/active', [HallController::class, 'getActiveHalls'])->name("get.acti
 Route::post('/{hallId}/activate', [HallController::class, 'activateHall'])->name("activate.hall");
 Route::post('/{hallId}/deactivate', [HallController::class, 'deactivateHall'])->name("deactivate.hall");
 Route::get("/{hallId}", [HallController::class, "getHallDetails"])->name("hall.details");
+Route::post("/import", [HallController::class, "importHall"])->name("import.hall");

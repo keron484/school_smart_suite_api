@@ -37,3 +37,5 @@ Route::post('/bulk-activate', [SpecialtyController::class, 'bulkActivateSpecialt
 
 Route::post('/bulk-deactivate', [SpecialtyController::class, 'bulkDeactivateSpecialty'])
     ->name('specialties.bulk-deactivate');
+
+Route::post('/import', [SpecialtyController::class, 'importSpecialty'])->name('import.specialty');

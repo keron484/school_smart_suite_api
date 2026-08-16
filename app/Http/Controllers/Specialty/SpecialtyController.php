@@ -10,8 +10,13 @@ use App\Http\Requests\Specialty\CreateSpecialtyRequest;
 use App\Http\Requests\Specialty\UpdateSpecialtyRequest;
 use App\Http\Requests\Specialty\SpecialtyIdRequest;
 use App\Http\Requests\Specialty\BulkUpdateSpecialtyRequest;
+use App\Http\Requests\Specialty\ImportSpecialtyRequest;
 use App\Http\Resources\SpecialtyResource;
-use Exception;
+use App\Jobs\Specialty\SpecialtyImportJob;
+use App\Models\Job\SystemJob;
+use App\Models\Job\SystemJobCategory;
+use App\Models\Job\SystemJobDetail;
+use App\Models\Specialty;
 
 class SpecialtyController extends Controller
 {
@@ -102,6 +107,67 @@ class SpecialtyController extends Controller
         $currentSchool = $request->attributes->get('currentSchool');
         $specialties = $this->specialtyService->getSpecialtyLevel($currentSchool);
         return ApiResponseService::success("Specialties By Level Fetched Successfully", $specialties, null, 200);
+    }
+
+    public function importSpecialty(ImportSpecialtyRequest $request)
+    {
+        $authUser = $this->resolveUser();
+        $currentSchool = $request->attributes->get('currentSchool');
+        $category = SystemJobCategory::where('name', 'Department')->firstOrFail();
+
+        $filePath = $request->file('file')->store(
+            "imports/specialty/{$currentSchool->id}",
+            'r2'
+        );
+
+        $payload = $request->validated();
+        $payload['file_path'] = $filePath;
+        unset($payload['file']);
+
+        $systemJob = SystemJob::create([
+            'type'              => 'department_import',
+            'context_type'      => Specialty::class,
+            'stage'             => 'Queued',
+            'status'            => 'queued',
+            'context_id'        => $currentSchool->id,
+            'initiated_by_id'   => $authUser->id,
+            'category_id'       => $category->id,
+            'initiated_by_type' => $authUser::class,
+            'queue'             => 'database',
+            'started_at'        => now(),
+        ]);
+
+        SystemJobDetail::create([
+            'job_id'           => $systemJob->id,
+            'school_branch_id' => $currentSchool->id,
+            'input'            => [
+                'file_path' => $filePath,
+                'mapping'       => $payload['mapping'],
+                'original'  => $payload,
+            ],
+            'summary'          => null,
+            'result'           => null,
+            'metadata'         => [
+                'last_broadcast_progress' => 0,
+                'last_broadcast_status'   => null,
+                'last_broadcast_at'       => null,
+            ],
+        ]);
+
+        SpecialtyImportJob::dispatch(
+            $authUser->id,
+            $currentSchool->id,
+            $category->id,
+            $systemJob->id,
+            $payload
+        );
+
+        return ApiResponseService::success(
+            'Specialty Importation Process Initiated Successfully',
+            null,
+            null,
+            200
+        );
     }
     protected function resolveUser()
     {

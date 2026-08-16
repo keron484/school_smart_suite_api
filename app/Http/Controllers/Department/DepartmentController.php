@@ -109,7 +109,7 @@ class DepartmentController extends Controller
         $category = SystemJobCategory::where('name', 'Department')->firstOrFail();
 
         $filePath = $request->file('file')->store(
-            "imports/teachers/{$currentSchool->id}",
+            "imports/department/{$currentSchool->id}",
             'r2'
         );
 
@@ -156,7 +156,7 @@ class DepartmentController extends Controller
         );
 
         return ApiResponseService::success(
-            'Teacher Importation Process Initiated Successfully',
+            'Department Importation Process Initiated Successfully',
             null,
             null,
             200

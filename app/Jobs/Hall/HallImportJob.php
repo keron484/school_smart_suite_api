@@ -1,21 +1,20 @@
 <?php
 
-namespace App\Jobs\Specialty;
+namespace App\Jobs\Hall;
 
 use App\Events\Job\JobEvent;
 use App\Models\Job\SystemJob;
 use App\Models\Job\SystemJobError;
 use App\Models\Schoolbranches;
 use App\Models\Schooladmin;
-use App\Models\Specialty;
-use App\Models\Department;
-use App\Models\EducationLevels;
+use App\Models\Hall;
+use App\Models\HallType;
 use App\Services\Helpers\Job\JobHelperService;
 use App\Services\Helpers\Job\JobProgressReporterService;
 use App\Services\Helpers\Import\SpreadSheetReadException;
 use App\Services\Helpers\Import\SpreadSheetReaderService;
 use App\Services\Job\JobBroadCastPolicyService;
-use App\Http\Requests\Specialty\CreateSpecialtyRequest;
+use App\Http\Requests\Hall\CreateHallRequest;
 use App\Models\Job\SystemJobDetail;
 use App\Services\Helpers\Import\ColumnIndexResolverService;
 use App\Services\Helpers\Import\ImportMapRowService;
@@ -30,7 +29,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Throwable;
 
-class SpecialtyImportJob implements ShouldQueue
+class HallImportJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
@@ -46,8 +45,8 @@ class SpecialtyImportJob implements ShouldQueue
     protected string $schoolBranchId;
     protected string $categoryId;
     protected string $jobId;
-    public array $requiredFields = ['specialty_name', 'department_name', 'registration_fee', 'school_fee', 'level'];
-    public array $optionalFields = ['description'];
+    public array $requiredFields = ['name', 'capacity', 'location', 'types'];
+    public array $optionalFields = [];
 
     private JobProgressReporterService $progressReporter;
     private JobBroadCastPolicyService $policy;
@@ -167,17 +166,27 @@ class SpecialtyImportJob implements ShouldQueue
                 ) {
 
 
-                    $department = Specialty::query()
+                    $hall = Hall::query()
                         ->where('school_branch_id', $schoolBranch->id)
-                        ->where('department_name', $normalizePayload['department_name'])
+                        ->where('hall_name', $normalizePayload['department_name'])
                         ->first();
 
-                    if ($department) {
-                        $department->update($normalizePayload);
+                    if ($hall) {
+                        $hall->update($normalizePayload);
                         $updated++;
                     } else {
-                        $department = Specialty::create([...$normalizePayload, "school_branch_id" => $schoolBranch->id]);
+                        $hall = Hall::create([...$normalizePayload, "school_branch_id" => $schoolBranch->id]);
                         $created++;
+                    }
+
+                    if (!empty($data['typeIds'])) {
+                        $syncData = collect($normalizePayload['typeIds'])
+                            ->mapWithKeys(fn($typeId) => [
+                                $typeId => ['school_branch_id' => $schoolBranch->id],
+                            ])
+                            ->toArray();
+
+                        $hall->types()->syncWithoutDetaching($syncData);
                     }
                 });
             } catch (Throwable $e) {
@@ -295,18 +304,14 @@ class SpecialtyImportJob implements ShouldQueue
 
     private function normalizeRow(array $payload, string $schoolBranchId): array
     {
-        $payload['department_id'] =  Department::where("department_name", $payload['department_name'])
-            ->where("school_branch_id", $schoolBranchId)
-            ->first()->id;
-        $payload['level_id'] = EducationLevels::where("program_name", $payload['level'])
-            ->whereHas('levelType', function ($query) {
-                $query->where('program_name', 'level_start_200');
-            })->first()->id;
+        $typeNames = collect($payload['types'])->pluck('type')->toArray();
+        $payload['typeIds'] = HallType::whereIn("name", $typeNames)->pluck('id')->toArray();
+
         return $payload;
     }
     private function validateRow(array $payload, int $rowNumber): ?array
     {
-        $request = new CreateSpecialtyRequest();
+        $request = new CreateHallRequest();
         $validator = Validator::make($payload, $request->rules());
 
         if ($validator->fails()) {
