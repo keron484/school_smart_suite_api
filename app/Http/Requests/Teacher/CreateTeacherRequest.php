@@ -14,18 +14,20 @@ class CreateTeacherRequest extends FormRequest
     public function rules()
     {
         return [
-            'name' => 'required|String',
-            'first_name' => 'required|string',
-            "last_name" => 'required|string',
-            'email' => 'required|email|string',
-            'phone' => 'sometimes|nullable|string',
-            'address' => 'sometimes|nullable|string',
+            'name' => 'required|string|max:50',
+            'first_name' => 'required|string|max:50',
+            "last_name" => 'required|string|max:50',
+            'email' => 'required|email|string|max:100',
+            'phone' => 'sometimes|nullable|string|max:20',
+            'address' => 'sometimes|nullable|string|max:200',
             'gender_id' => 'required|string|exists:genders,id',
-            'level_ids' => 'required|array|min:1',
-            'level_ids.*' => 'required|uuid|exists:levels,id',
+            'allowed_level_ids' => 'required|array|min:1',
+            'allowed_level_ids.*' => 'required|uuid|exists:levels,id',
             'qualifications' => "required|array|min:1",
             'qualifications.*.qualification_id' => 'required|uuid|exists:qualifications,id',
-            'qualifications.*.field_of_study' => 'required|string'
+            'qualifications.*.field_of_study' => 'required|string|max:200',
+            'qualifications.*.institution' => 'required|string|max:150',
+            'qualifications.*.year' => 'required|string|max:50'
         ];
     }
 }

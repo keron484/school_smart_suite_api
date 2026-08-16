@@ -10,19 +10,16 @@ return new class extends Migration
     {
         Schema::create('school_admins', function (Blueprint $table) {
             $table->string('id')->primary();
+            $table->string('first_name');
+            $table->string('last_name');
             $table->string('name');
             $table->string('email')->index();
             $table->string('password');
+            $table->string('phone');
+            $table->string('username')->index();
             $table->string('profile_picture')->nullable();
-            $table->string('role')->nullable();
-            $table->date('date_of_birth')->nullable();
             $table->string('address')->nullable();
-            $table->boolean('is_active')->default(true);
-            $table->string('cultural_background')->nullable();
             $table->enum('status', ['active', 'inactive'])->default('active');
-            $table->string('city')->nullable();
-            $table->string('first_name');
-            $table->string('last_name');
             $table->rememberToken();
             $table->timestamps();
         });

@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Department;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Department\DepartmentImportRequest;
 use App\Services\Department\DepartmentService;
 use App\Http\Resources\DepartmentResource;
 use App\Http\Requests\Department\CreateDepartmentRequest;
@@ -10,6 +11,11 @@ use App\Http\Requests\Department\UpdateDepartmentRequest;
 use App\Http\Requests\Department\BulkUpdateDepartmentRequest;
 use App\Services\ApiResponseService;
 use App\Http\Requests\Department\ValidateDepartmentIdRequest;
+use App\Jobs\Department\DepartmentImportJob;
+use App\Models\Department;
+use App\Models\Job\SystemJob;
+use App\Models\Job\SystemJobCategory;
+use App\Models\Job\SystemJobDetail;
 use Illuminate\Http\Request;
 
 class DepartmentController extends Controller
@@ -53,14 +59,14 @@ class DepartmentController extends Controller
         $departmentDetails = $this->departmentService->getDepartmentDetails($currentSchool, $departmentId);
         return ApiResponseService::success("Department Details Fetched Sucessfully", $departmentDetails, null, 200);
     }
-    public function deactivateDepartment(Request $request, $departmentId)
+    public function deactivateDepartment(Request $request, string $departmentId)
     {
         $authAdmin = $this->resolveUser();
         $currentSchool = $request->attributes->get('currentSchool');
         $deactivateDepartment = $this->departmentService->deactivateDepartment($departmentId, $currentSchool, $authAdmin);
         return ApiResponseService::success("Department Deactivated Sucessfully", $deactivateDepartment, null, 200);
     }
-    public function activateDepartment(Request $request, $departmentId)
+    public function activateDepartment(Request $request, string $departmentId)
     {
         $authAdmin = $this->resolveUser();
         $currentSchool = $request->attributes->get('currentSchool');
@@ -94,6 +100,67 @@ class DepartmentController extends Controller
         $currentSchool = $request->attributes->get('currentSchool');
         $bulkUpdateDepartment = $this->departmentService->bulkUpdateDepartment($request->departments, $currentSchool, $authAdmin);
         return ApiResponseService::success("Departments Updated Succesfully", $bulkUpdateDepartment, null, 200);
+    }
+
+    public function importDepartment(DepartmentImportRequest $request)
+    {
+        $authUser = $this->resolveUser();
+        $currentSchool = $request->attributes->get('currentSchool');
+        $category = SystemJobCategory::where('name', 'Department')->firstOrFail();
+
+        $filePath = $request->file('file')->store(
+            "imports/teachers/{$currentSchool->id}",
+            'r2'
+        );
+
+        $payload = $request->validated();
+        $payload['file_path'] = $filePath;
+        unset($payload['file']);
+
+        $systemJob = SystemJob::create([
+            'type'              => 'department_import',
+            'context_type'      => Department::class,
+            'stage'             => 'Queued',
+            'status'            => 'queued',
+            'context_id'        => $currentSchool->id,
+            'initiated_by_id'   => $authUser->id,
+            'category_id'       => $category->id,
+            'initiated_by_type' => $authUser::class,
+            'queue'             => 'database',
+            'started_at'        => now(),
+        ]);
+
+        SystemJobDetail::create([
+            'job_id'           => $systemJob->id,
+            'school_branch_id' => $currentSchool->id,
+            'input'            => [
+                'file_path' => $filePath,
+                'mapping'       => $payload['mapping'],
+                'original'  => $payload,
+            ],
+            'summary'          => null,
+            'result'           => null,
+            'metadata'         => [
+                'last_broadcast_progress' => 0,
+                'last_broadcast_status'   => null,
+                'last_broadcast_at'       => null,
+            ],
+        ]);
+
+        DepartmentImportJob::dispatch(
+            $authUser->id,
+            $currentSchool->id,
+            $category->id,
+            $systemJob->id,
+            $payload
+        );
+
+        return ApiResponseService::success(
+            'Teacher Importation Process Initiated Successfully',
+            null,
+            null,
+            200
+        );
     }
     protected function resolveUser()
     {

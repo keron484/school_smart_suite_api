@@ -25,21 +25,16 @@ class Schooladmin extends Authenticatable
         'name',
         'first_name',
         'last_name',
-        'role',
+        'username',
         'email',
         'password',
         'profile_picture',
-        'date_of_birth',
         'address',
-        'cultural_background',
-        'phone_one',
-        'phone_two',
+        'phone',
         'school_branch_id',
-        'status'
-    ];
-
-    protected $casts = [
-        'date_of_birth' => 'date'
+        'status',
+        'gender_id',
+        'phone'
     ];
 
     protected $hidden = [
@@ -64,6 +59,10 @@ class Schooladmin extends Authenticatable
         ];
     }
 
+    public function gender(): BelongsTo
+    {
+        return $this->belongsTo(Gender::class, 'gender_id');
+    }
     public function systemJob(): MorphMany
     {
         return $this->morphMany(SystemJob::class, 'initiatedBy');

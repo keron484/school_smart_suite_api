@@ -31,6 +31,8 @@ class JobHelperService
             'event_type' => 'error',
             'message'    => $message,
         ]);
+
+
     }
 
 }

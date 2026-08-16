@@ -39,7 +39,7 @@ class Exams extends Model
     protected $casts = [
         'start_date' => 'date',
         'end_date' => 'date',
-        'weighted_mark' => 'decimal:2',
+        'weighted_mark' => 'float',
         'expected_candidate_number' => 'integer',
         'evaluated_candidate_number' => 'integer',
     ];

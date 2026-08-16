@@ -148,7 +148,7 @@ class TeacherController extends Controller
             'school_branch_id' => $currentSchool->id,
             'input'            => [
                 'file_path' => $filePath,
-                'map'       => $payload['map'],
+                'mapping'       => $payload['mapping'],
                 'original'  => $payload,
             ],
             'summary'          => null,

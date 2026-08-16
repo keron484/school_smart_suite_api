@@ -32,7 +32,7 @@ class StudentController extends Controller
     {
         $currentSchool = $request->attributes->get('currentSchool');
         $getStudents = $this->studentService->getStudents($currentSchool);
-        return ApiResponseService::success("Student Fetched Succefully", StudentResource::collection($getStudents), null, 200);
+        return ApiResponseService::success("Student Fetched Succefully", $getStudents, null, 200);
     }
     public function deleteStudent(Request $request, $studentId)
     {

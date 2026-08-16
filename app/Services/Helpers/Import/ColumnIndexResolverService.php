@@ -7,43 +7,91 @@ class ColumnIndexResolverService
 {
     public static function resolve(
         array $header,
-        array $mapping,
-        array $required = ['email', 'full_names', 'first_name', 'last_name', 'phone'],
-        array $optional = ['address', 'gender']
+        array $mapping
     ): ?array {
-        $header = array_map(static fn($h) => strtolower(trim((string) $h)), $header);
-        $indexes = [];
+        $normalizedHeader = array_map(
+            static fn ($value) => strtolower(trim((string) $value)),
+            $header
+        );
 
+        $resolved = [
+            'standardFields' => [],
+            'repeatableGroups' => [],
+        ];
 
-        foreach ($required as $key) {
-            $columnName = strtolower(trim((string) ($mapping[$key] ?? '')));
-
-            if ($columnName === '') {
-                return null;
-            }
-
-            $index = array_search($columnName, $header, false);
-
-            if ($index === false) {
-                return null;
-            }
-
-            $indexes[$key] = $index;
-        }
-
-        foreach ($optional as $key) {
-            if (empty($mapping[$key])) {
+        /*
+         * Standard fields
+         */
+        foreach ($mapping['standardFields'] ?? [] as $field => $columnName) {
+            if (self::isEmpty($columnName)) {
                 continue;
             }
 
-            $columnName = strtolower(trim((string) $mapping[$key]));
-            $index = array_search($columnName, $header, false);
+            $index = self::findColumnIndex(
+                $normalizedHeader,
+                $columnName
+            );
 
-            if ($index !== false) {
-                $indexes[$key] = $index;
+            if ($index === null) {
+                return null;
+            }
+
+            $resolved['standardFields'][$field] = $index;
+        }
+
+        /*
+         * Repeatable groups
+         */
+        foreach ($mapping['repeatableGroups'] ?? [] as $groupName => $instances) {
+            $resolved['repeatableGroups'][$groupName] = [];
+
+            foreach ($instances as $instance) {
+                $resolvedInstance = [];
+
+                foreach ($instance as $field => $columnName) {
+                    if (self::isEmpty($columnName)) {
+                        continue;
+                    }
+
+                    $index = self::findColumnIndex(
+                        $normalizedHeader,
+                        $columnName
+                    );
+
+                    if ($index === null) {
+                        return null;
+                    }
+
+                    $resolvedInstance[$field] = $index;
+                }
+
+                if ($resolvedInstance !== []) {
+                    $resolved['repeatableGroups'][$groupName][] = $resolvedInstance;
+                }
             }
         }
 
-        return $indexes;
+        return $resolved;
+    }
+
+    private static function findColumnIndex(
+        array $header,
+        mixed $columnName
+    ): ?int {
+        $columnName = strtolower(trim((string) $columnName));
+
+        $index = array_search(
+            $columnName,
+            $header,
+            true
+        );
+
+        return $index === false ? null : $index;
+    }
+
+    private static function isEmpty(mixed $value): bool
+    {
+        return $value === null
+            || trim((string) $value) === '';
     }
 }

@@ -13,7 +13,7 @@ use App\Events\Actions\AdminActionEvent;
 
 class SchoolAdminService
 {
-    public function updateSchoolAdmin(array $data, $schoolAdminId, $currentSchool, $authAdmin)
+    public function updateSchoolAdmin(array $data, string $schoolAdminId, object $currentSchool, object $authAdmin)
     {
         $SchoolAdminExists = Schooladmin::where("school_branch_id", $currentSchool->id)->find($schoolAdminId);
         if (!$SchoolAdminExists) {
@@ -35,7 +35,7 @@ class SchoolAdminService
         return $SchoolAdminExists;
     }
 
-    public function deleteSchoolAdmin($schoolAdminId, $currentSchool, $authAdmin)
+    public function deleteSchoolAdmin(string $schoolAdminId, object $currentSchool, object $authAdmin)
     {
         $SchoolAdminExists =  Schooladmin::where("school_branch_id", $currentSchool->id)->find($schoolAdminId);
         if (!$SchoolAdminExists) {
@@ -56,13 +56,29 @@ class SchoolAdminService
         return $SchoolAdminExists;
     }
 
-    public function getSchoolAdmins($currentSchool)
+    public function getSchoolAdmins(object $currentSchool)
     {
-        $SchoolAdminExists =  Schooladmin::where("school_branch_id", $currentSchool->id)->get();
-        return $SchoolAdminExists;
+        $SchoolAdminExists =  Schooladmin::where("school_branch_id", $currentSchool->id)
+            ->with(['gender', 'roles'])->get();
+        return $SchoolAdminExists->map(fn($admin) => [
+            "id" => $admin->id,
+            "username" => $admin->username ?? null,
+            "first_name" => $admin->first_name ?? null,
+            "last_name" => $admin->last_name ?? null,
+            "names" => $admin->name ?? null,
+            "email" => $admin->email ?? null,
+            "phone" => $admin->phone ?? null,
+            "address" => $admin->address ?? null,
+            "profile_picture" => $admin->profile_picture ?? null,
+            "status" => $admin->status ?? null,
+            'role' => $admin->roles->first()?->name ?? 'No Role',
+            "gender" => $admin->gender->name ?? null,
+            "created_at" => $admin->created_at ?? null,
+            "update_at" => $admin->updated_at ?? null,
+        ]);
     }
 
-    public function getSchoolAdminDetails($currentSchool, $schoolAdminId)
+    public function getSchoolAdminDetails(object $currentSchool, string $schoolAdminId)
     {
         $SchoolAdminExists =  Schooladmin::where("school_branch_id", $currentSchool->id)->find($schoolAdminId);
         if (!$SchoolAdminExists) {
@@ -71,13 +87,13 @@ class SchoolAdminService
         return $SchoolAdminExists;
     }
 
-    public function createSchoolAdmin(array $data, string $schoolBranchId): SchoolAdmin
+    public function createSchoolAdmin(array $data, string $schoolBranchId): Schooladmin
     {
         try {
 
             DB::beginTransaction();
 
-            $schoolAdmin = new SchoolAdmin();
+            $schoolAdmin = new Schooladmin();
             $schoolAdminId = Str::uuid();
             $schoolAdmin->id = $schoolAdminId;
             $schoolAdmin->name = $data["name"];
@@ -101,7 +117,7 @@ class SchoolAdminService
         }
     }
 
-    public function uploadProfilePicture($request, $authSchoolAdmin)
+    public function uploadProfilePicture(object $request, object $authSchoolAdmin)
     {
         $schoolAdminExists = Schooladmin::find($authSchoolAdmin->id);
         if (!$schoolAdminExists) {
@@ -126,7 +142,7 @@ class SchoolAdminService
         }
     }
 
-    public function deleteProfilePicture($authSchoolAdmin)
+    public function deleteProfilePicture(object $authSchoolAdmin)
     {
         $schoolAdminExists = Schooladmin::find($authSchoolAdmin->id);
         if (!$schoolAdminExists) {
@@ -148,7 +164,7 @@ class SchoolAdminService
         }
     }
 
-    public function deactivateAccount(string $schoolAdminId, $currentSchool, $authAdmin)
+    public function deactivateAccount(string $schoolAdminId, object $currentSchool, object $authAdmin)
     {
         $schoolAdmin = Schooladmin::where("school_branch_id", $currentSchool->id)
             ->findOrFail($schoolAdminId);
@@ -168,7 +184,7 @@ class SchoolAdminService
         return $schoolAdmin;
     }
 
-    public function activateAccount(string $schoolAdminId, $currentSchool, $authAdmin)
+    public function activateAccount(string $schoolAdminId, object $currentSchool, object $authAdmin)
     {
         $schoolAdmin = Schooladmin::where("school_branch_id", $currentSchool->id)
             ->findOrFail($schoolAdminId);
@@ -188,7 +204,7 @@ class SchoolAdminService
         return $schoolAdmin;
     }
 
-    public function bulkUpdateSchoolAdmin(array $schoolAdminList, $currentSchool, $authAdmin)
+    public function bulkUpdateSchoolAdmin(array $schoolAdminList, object $currentSchool, object $authAdmin)
     {
         try {
             DB::beginTransaction();
@@ -230,7 +246,7 @@ class SchoolAdminService
         }
     }
 
-    public function bulkDeleteSchoolAdmin(array $deleteAdminList, $currentSchool, $authAdmin)
+    public function bulkDeleteSchoolAdmin(array $deleteAdminList, object $currentSchool, object $authAdmin)
     {
         $deletedSchoolAdmin = [];
 
@@ -265,7 +281,7 @@ class SchoolAdminService
         }
     }
 
-    public function bulkDeactivateSchoolAdmin(array $schoolAdminList, $currentSchool, $authAdmin)
+    public function bulkDeactivateSchoolAdmin(array $schoolAdminList, object $currentSchool, object $authAdmin)
     {
         $result = [];
         try {
@@ -300,7 +316,7 @@ class SchoolAdminService
         }
     }
 
-    public function bulkActivateSchoolAdmin(array $schoolAdminList, $currentSchool, $authAdmin)
+    public function bulkActivateSchoolAdmin(array $schoolAdminList, object $currentSchool, object $authAdmin)
     {
         $result = [];
         try {

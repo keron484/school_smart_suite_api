@@ -163,7 +163,7 @@ class SpecialtyService
     public function getSpecialties(object $currentSchool)
     {
         $specialtyData = Specialty::where("school_branch_id", $currentSchool->id)
-            ->with(['level'])
+            ->with(['level', 'department'])
             ->get();
 
         if ($specialtyData->isEmpty()) {

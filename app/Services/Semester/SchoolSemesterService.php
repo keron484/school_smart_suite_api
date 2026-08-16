@@ -393,8 +393,11 @@ class SchoolSemesterService
                 "status" => $status,
                 "specialty_name" => $semester->schoolYear->specialty?->specialty_name,
                 "level_name" => $semester->schoolYear->specialty?->level?->name,
+                "level_number" => $semester->schoolYear->specialty?->level?->level,
                 "timetable_published" => $semester->timetable_published ? "created" : "not created",
                 "semester_name" => $semester->semester?->name ?? $semester->semester?->semester_name,
+                "created_at" => $semester->created_at,
+                "updated_at" => $semester->updated_at
             ];
         });
     }

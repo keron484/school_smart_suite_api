@@ -27,7 +27,7 @@ class Qualification extends Model
             'qualification_id',
             'teacher_id'
         )->using(TeacherQualification::class)
-            ->withPivot(['id', 'school_branch_id', 'field_of_study'])
+            ->withPivot(['id', 'school_branch_id', 'field_of_study', 'institution', 'year'])
             ->withTimestamps();
     }
 }

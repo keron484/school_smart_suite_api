@@ -11,7 +11,9 @@ class TeacherQualification extends Pivot
         'qualification_id',
         'level_id',
         'school_branch_id',
-        'field_of_study'
+        'field_of_study',
+        'year',
+        'institution'
     ];
 
     public $incrementing = false;

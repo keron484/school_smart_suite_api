@@ -21,45 +21,108 @@ class ImportTeacherRequest extends FormRequest
                 'mimes:csv,xlsx,xls',
                 'max:10240',
             ],
-            'map' => [
+            'mapping' => [
                 'required',
                 'array',
             ],
-            'map.email' => [
+
+            'mapping.standardFields' => [
                 'required',
-                'string',
-                'max:255',
+                'array',
             ],
-            'map.full_names' => [
+
+            'mapping.repeatableGroups' => [
                 'required',
-                'string',
-                'max:255',
+                'array',
             ],
-            'map.first_name' => [
-                'required',
-                'string',
-                'max:255',
-            ],
-            'map.last_name' => [
-                'required',
-                'string',
-                'max:255',
-            ],
-            'map.phone' => [
-                'required',
-                'string',
-                'max:255',
-            ],
-            'map.address' => [
+            'mapping.standardFields.email' => [
                 'nullable',
                 'string',
-                'max:255',
             ],
-            'map.gender' => [
+
+            'mapping.standardFields.full_names' => [
                 'nullable',
                 'string',
-                'max:255',
-            ]
+            ],
+
+            'mapping.standardFields.first_name' => [
+                'nullable',
+                'string',
+            ],
+
+            'mapping.standardFields.last_name' => [
+                'nullable',
+                'string',
+            ],
+
+            'mapping.standardFields.phone' => [
+                'nullable',
+                'string',
+            ],
+
+            'mapping.standardFields.gender' => [
+                'nullable',
+                'string',
+            ],
+
+            'mapping.standardFields.address' => [
+                'nullable',
+                'string',
+            ],
+            'mapping.repeatableGroups.qualifications' => [
+                'required',
+                'array',
+                'min:1',
+                'max:5',
+            ],
+
+            'mapping.repeatableGroups.allowed_levels' => [
+                'required',
+                'array',
+                'min:1',
+                'max:5',
+            ],
+
+            /*
+             * Qualification instances
+             */
+            'mapping.repeatableGroups.qualifications.*' => [
+                'required',
+                'array',
+            ],
+
+            'mapping.repeatableGroups.qualifications.*.qualification' => [
+                'required',
+                'string',
+            ],
+
+            'mapping.repeatableGroups.qualifications.*.field_of_study' => [
+                'required',
+                'string',
+            ],
+
+            'mapping.repeatableGroups.qualifications.*.institution' => [
+                'required',
+                'string',
+            ],
+
+            'mapping.repeatableGroups.qualifications.*.year' => [
+                'required',
+                'string',
+            ],
+
+            /*
+             * Allowed level instances
+             */
+            'mapping.repeatableGroups.allowed_levels.*' => [
+                'required',
+                'array',
+            ],
+
+            'mapping.repeatableGroups.allowed_levels.*.allowed_level' => [
+                'required',
+                'string',
+            ],
         ];
     }
 

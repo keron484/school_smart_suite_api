@@ -327,11 +327,15 @@ class CourseService
             "course_code" => $course->course_code ?? null,
             "course_title" => $course->course_title ?? null,
             "course_credit" => $course->credit ?? null,
+            'course_description' => $course->description ?? null,
             "semester_title" => $course->semester->name ?? null,
+            "semester_count" => $course->semester->count ?? null,
             "specialty_name" => $course->specialties->first()->specialty_name ?? null,
             "level_name" => $course->specialties->first()->level->name ?? null,
             "level_number" => $course->specialties->first()->level->level ?? null,
             "status" => $course->status ?? null,
+            "created_at" => $course->created_at ?? null,
+            "updated_at" => $course->updated_at ?? null
         ]);
     }
     public function courseDetails(string $courseId, object $currentSchool)

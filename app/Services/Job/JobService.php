@@ -71,17 +71,14 @@ class JobService
                 );
             }
 
-            // Delete all related job events
             SystemJobEvent::where("school_branch_id", $currentSchool->id)
                 ->where("job_id", $jobId)
                 ->delete();
 
-            // Delete related job details
             SystemJobDetail::where("school_branch_id", $currentSchool->id)
                 ->where("job_id", $jobId)
                 ->delete();
 
-            // Delete the job itself
             $job->delete();
 
             return $job;

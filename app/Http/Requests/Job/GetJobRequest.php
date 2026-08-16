@@ -16,7 +16,7 @@ class GetJobRequest extends FormRequest
     {
         return [
            'category' => ['nullable', 'sometimes', 'string', 'max:150'],
-           "status" => ['nullable', 'sometimes', 'string', 'in:completed,queued,failed,inprogress'],
+           "status" => ['nullable', 'sometimes', 'string', 'in:completed,queued,failed,processing,completed_with_issues'],
            "group_by" => ['nullable', 'sometimes', 'string', 'in:status,stage,category'],
         ];
     }

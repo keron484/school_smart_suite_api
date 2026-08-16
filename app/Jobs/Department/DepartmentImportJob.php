@@ -1,26 +1,20 @@
 <?php
 
-namespace App\Jobs\Teacher;
+namespace App\Jobs\Department;
 
 use App\Events\Job\JobEvent;
 use App\Models\Job\SystemJob;
 use App\Models\Job\SystemJobError;
 use App\Models\Schoolbranches;
-use App\Models\Teacher;
-use App\Models\Educationlevels;
-use App\Models\Qualification;
-use App\Models\LevelTypel;
-use App\Services\Helpers\Actor\ActorHelperService;
+use App\Models\Schooladmin;
+use App\Models\Department;
 use App\Services\Helpers\Job\JobHelperService;
 use App\Services\Helpers\Job\JobProgressReporterService;
 use App\Services\Helpers\Import\SpreadSheetReadException;
 use App\Services\Helpers\Import\SpreadSheetReaderService;
 use App\Services\Job\JobBroadCastPolicyService;
-use App\Http\Requests\Teacher\CreateTeacherRequest;
-use App\Models\Gender;
+use App\Http\Requests\Department\CreateDepartmentRequest;
 use App\Models\Job\SystemJobDetail;
-use App\Models\LevelType;
-use App\Models\Schooladmin;
 use App\Services\Helpers\Import\ColumnIndexResolverService;
 use App\Services\Helpers\Import\ImportMapRowService;
 use Carbon\Carbon;
@@ -30,12 +24,11 @@ use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Throwable;
 
-class TeacherImportJob implements ShouldQueue
+class DepartmentImportJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
@@ -51,8 +44,8 @@ class TeacherImportJob implements ShouldQueue
     protected string $schoolBranchId;
     protected string $categoryId;
     protected string $jobId;
-    public array $requiredFields = ['email', 'full_names', 'first_name', 'last_name', 'phone', 'qualifications', 'allowed_levels'];
-    public array $optionalFields = ['address', 'gender'];
+    public array $requiredFields = ['department_name', 'description'];
+    public array $optionalFields = [];
 
     private JobProgressReporterService $progressReporter;
     private JobBroadCastPolicyService $policy;
@@ -153,8 +146,7 @@ class TeacherImportJob implements ShouldQueue
         foreach ($dataRows as $index => $row) {
             $rowNumber = $index + 2;
             $payload = $this->importMapRowService->mapRow($row->toArray(), $columnIndexes);
-            $normalizedPayload = $this->normalizeRow($payload, $this->schoolBranchId);
-            $validationError = $this->validateRow($normalizedPayload, $rowNumber);
+            $validationError = $this->validateRow($payload, $rowNumber);
             if ($validationError !== null) {
                 $skipped++;
                 $errors[] = $validationError;
@@ -165,63 +157,24 @@ class TeacherImportJob implements ShouldQueue
 
             try {
                 DB::transaction(function () use (
-                    $normalizedPayload,
+                    $payload,
                     &$created,
                     &$updated,
                     $schoolBranch
                 ) {
-                    $qualifications = $normalizedPayload['qualifications'] ?? [];
-                    $allowedLevelIds = $normalizedPayload['allowed_level_ids'] ?? [];
 
-                    $teacherData = collect($normalizedPayload)
-                        ->except([
-                            'qualifications',
-                            'allowed_level_ids',
-                            'allowed_levels',
-                        ])
-                        ->all();
 
-                    $teacher = Teacher::query()
+                    $department = Department::query()
                         ->where('school_branch_id', $schoolBranch->id)
-                        ->where('email', $normalizedPayload['email'])
+                        ->where('department_name', $payload['department_name'])
                         ->first();
 
-                    if ($teacher) {
-                        $teacher->update($teacherData);
+                    if ($department) {
+                        $department->update($payload);
                         $updated++;
                     } else {
-                        $teacher = Teacher::create($teacherData);
+                        $department = Department::create([...$payload, "school_branch_id" => $schoolBranch->id]);
                         $created++;
-                    }
-
-                    $qualificationSync = collect($qualifications)
-                        ->mapWithKeys(fn($qualification) => [
-                            $qualification['qualification_id'] => [
-                                'school_branch_id' => $this->schoolBranchId,
-                                'field_of_study' => $qualification['field_of_study'] ?? null,
-                                'year' => $qualification['year'] ?? null,
-                                'institution' => $qualification['institution'] ?? null,
-                                'qualification' => $qualification['qualification'] ?? null
-                            ],
-                        ])
-                        ->all();
-
-                    if ($qualificationSync !== []) {
-                        $teacher->qualifications()->syncWithoutDetaching(
-                            $qualificationSync
-                        );
-                    }
-
-                    if ($allowedLevelIds !== []) {
-                        $teacher->levels()->syncWithoutDetaching(
-                            collect($allowedLevelIds)
-                                ->mapWithKeys(fn($levelId) => [
-                                    $levelId => [
-                                        'school_branch_id' => $this->schoolBranchId,
-                                    ],
-                                ])
-                                ->all()
-                        );
                     }
                 });
             } catch (Throwable $e) {
@@ -336,68 +289,10 @@ class TeacherImportJob implements ShouldQueue
             $this->batchSkipped = 0;
         }
     }
-    private function normalizeRow(array $payload, string $schoolBranchId): array
-    {
-        $actorHelper = app(ActorHelperService::class);
-
-        $fullName = trim((string) ($payload['full_names'] ?? ''));
-
-        $payload['password'] = Hash::make($actorHelper->generateRandomPassword());
-        $payload['username'] = $fullName !== ''
-            ? $actorHelper->generateUsername($fullName, Teacher::class)
-            : null;
-            $payload['school_branch_id'] = $schoolBranchId;
-        $payload['status'] = 'active';
-        $payload['name'] = $fullName;
-
-        $payload['gender_id'] = Gender::where("name", $payload['gender'])->first()->id;
-
-        $rawLevels = $payload['allowed_levels'] ?? [];
-        $allowedLevelNames = collect($rawLevels)
-            ->pluck('allowed_level')
-            ->filter()
-            ->toArray();
-
-        $payload['allowed_level_ids'] = !empty($allowedLevelNames)
-            ? EducationLevels::whereIn('program_name', $allowedLevelNames)
-            ->whereHas('levelType', function ($query) {
-                $query->where('program_name', 'level_start_200');
-            })
-            ->pluck('id')
-            ->toArray()
-            : [];
-
-        $rawQualifications = $payload['qualifications'] ?? [];
-
-        $payload['qualifications'] = collect($rawQualifications)
-            ->map(function ($q) {
-                $abbreviation = trim((string) ($q['qualification'] ?? ''));
-
-                $qualId = $abbreviation !== ''
-                    ? Qualification::where('abbreviation', $abbreviation)->value('id')
-                    : null;
-
-                return [
-                    'field_of_study'   => $q['field_of_study'] ?? null,
-                    'year'             => $q['year'] ?? null,
-                    'institution'      => $q['institution'] ?? null,
-                    'qualification_id' => $qualId,
-                ];
-            })
-            ->reject(fn($q) => $q['qualification_id'] === null)
-            ->values()
-            ->toArray();
-
-        if (isset($payload['gender']) && trim((string) $payload['gender']) !== '') {
-            $payload['gender'] = strtolower(trim((string) $payload['gender']));
-        }
-
-        return $payload;
-    }
 
     private function validateRow(array $payload, int $rowNumber): ?array
     {
-        $request = new CreateTeacherRequest();
+        $request = new CreateDepartmentRequest();
         $validator = Validator::make($payload, $request->rules());
 
         if ($validator->fails()) {

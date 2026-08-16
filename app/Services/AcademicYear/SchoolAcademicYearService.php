@@ -201,8 +201,13 @@ class SchoolAcademicYearService
                 "end_date" => $year->end_date,
                 "specialty_name" => $year->specialty->specialty_name ?? null,
                 "level_name" => $year->specialty->level->name ?? null,
+                "level_number" => $year->specialty->level->level ?? null,
                 "status" => $status,
-                "school_year" => $year->systemAcademicYear->name ?? null
+                "school_year" => $year->systemAcademicYear->name ?? null,
+                "year_start" => $year->systemAcademicYear->year_start ?? null,
+                "year_end" => $year->systemAcademicYear->year_end ?? null,
+                "created_at" => $year->created_at ?? null,
+                "updated_at" => $year->updated_at ?? null,
             ];
         });
 

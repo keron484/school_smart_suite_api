@@ -14,6 +14,8 @@ return new class extends Migration
         Schema::table('school_admins', function (Blueprint $table) {
             $table->string('school_branch_id')->after('id');
             $table->foreign('school_branch_id')->references('id')->on('school_branches');
+            $table->uuid('gender_id');
+            $table->foreign('gender_id')->references('id')->on('genders');
         });
     }
 

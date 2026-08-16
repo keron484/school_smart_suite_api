@@ -18,6 +18,10 @@ class Gender extends Model
     public $table = "genders";
     public $keyType = 'string';
 
+    public function schoolAdmin(): HasMany
+    {
+        return $this->hasMany(Schooladmin::class);
+    }
     public function student(): HasMany
     {
         return $this->hasMany(Student::class);

@@ -28,7 +28,7 @@ class SystemJobResource extends JsonResource
             "remaining_items" => $this->getRemainingItems(),
             "progress_percentage" => $this->getProgressPercentage(),
             "started_at" => $this->started_at,
-            "completed_at" => $this->completed_at,
+            "finished_at" => $this->finished_at,
             "created_at" => $this->created_at,
             "updated_at" => $this->updated_at,
             "category_id" => $this->category?->id,

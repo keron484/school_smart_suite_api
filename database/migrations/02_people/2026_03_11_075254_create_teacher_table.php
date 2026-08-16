@@ -50,6 +50,8 @@ return new class extends Migration
         Schema::create('teacher_qualifications', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->string('field_of_study', 150);
+            $table->string('year', 50);
+            $table->string('institution', 150);
             $table->timestamps();
         });
         Schema::create('teacher_levels', function (Blueprint $table) {

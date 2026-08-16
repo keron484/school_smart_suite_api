@@ -35,6 +35,7 @@ class Teacher extends Model
         'profile_picture',
         'address',
         'username',
+        'password',
         'gender_id',
         'sub_status'
     ];
@@ -172,7 +173,13 @@ class Teacher extends Model
             'teacher_id',
             'qualification_id'
         )->using(TeacherQualification::class)
-            ->withPivot(['id', 'school_branch_id', 'field_of_study'])
+            ->withPivot([
+                'id',
+                'school_branch_id',
+                'field_of_study',
+                'year',
+                'institution'
+            ])
             ->withTimestamps();
     }
 
