@@ -21,9 +21,12 @@ class CreateSchoolAdminRequest extends FormRequest
     {
         return [
             'name' => "required|string",
-            'email' => 'required|email',
             'first_name' => 'required|string',
             'last_name' => 'required|string',
+            'email' => 'required|email|string|max:150',
+            'phone' => 'required|nullable|string|max:20',
+            'address' => 'required|nullable|string|max:200',
+            'gender_id' => 'required|string|exists:genders,id',
         ];
     }
 }

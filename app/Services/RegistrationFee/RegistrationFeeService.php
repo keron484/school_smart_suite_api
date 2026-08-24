@@ -13,7 +13,7 @@ use App\Events\Actions\StudentActionEvent;
 
 class RegistrationFeeService
 {
-    public function getRegistrationFees($currentSchool)
+    public function getRegistrationFees(object $currentSchool)
     {
         try {
             $registrationFees = RegistrationFee::where("school_branch_id", $currentSchool->id)

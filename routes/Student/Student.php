@@ -53,3 +53,5 @@ use App\Http\Controllers\Student\StudentController;
     Route::get('/{studentId}/profile', [StudentController::class, 'getStudentProfileDetails'])->name('get.student.profile.details');
 
     Route::post('/bulk-reinstate/dropout', [StudentController::class, "bulkReinstateDropedOutStudent"])->name("Bulk.reinstate.dropdout.student");
+
+    Route::post("/import", [StudentController::class, 'importStudents'])->name("import.student");

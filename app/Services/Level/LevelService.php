@@ -4,12 +4,11 @@ namespace App\Services\Level;
 
 use App\Models\Educationlevels;
 use App\Exceptions\AppException;
-use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Throwable;
 
 class LevelService
 {
-    public function deleteEducationLevel($levelId)
+    public function deleteEducationLevel(string $levelId)
     {
         $levelName = 'Unknown Level';
 
@@ -59,7 +58,7 @@ class LevelService
     public function getEducationLevels()
     {
         try {
-            $educationLevels = Educationlevels::all();
+            $educationLevels = Educationlevels::whereHas("levelType", fn($query) => $query->where("program_name", "level_start_200"))->get();
 
             if ($educationLevels->isEmpty()) {
                 throw new AppException(
@@ -104,7 +103,7 @@ class LevelService
             throw new AppException(
                 "An education level with the value '{$levelValue}' already exists.",
                 409,
-                "Duplicate Level Value 🔢",
+                "Duplicate Level Value",
                 "The level value you entered is already in use. Please ensure each level has a unique numeric value.",
                 null
             );
@@ -121,14 +120,14 @@ class LevelService
             throw new AppException(
                 "Failed to create education level '{$levelName}'. Error: " . $e->getMessage(),
                 500,
-                "Level Creation Failed 🛑",
+                "Level Creation Failed",
                 "A system error occurred while trying to save the new education level. Please try again or contact support.",
                 null
             );
         }
     }
 
-    public function updateEducationLevel(array $data, $levelId)
+    public function updateEducationLevel(array $data, string $levelId)
     {
         try {
             $educationLevel = Educationlevels::find($levelId);

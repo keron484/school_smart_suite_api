@@ -16,13 +16,15 @@ class RegistrationFeeResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'status' => $this->status,
-            'amount' => $this->amount,
-            'title' => $this->title,
-            'student_name' => $this->student->name,
-            'level_name' => $this->level->name,
-            'level' => $this->level->level,
-            'specialty_name' => $this->specialty->specialty_name,
+            'status' => $this->status ?? null,
+            'amount' => $this->amount ?? null,
+            'title' => $this->title ?? null,
+            'student_name' => $this->student->name ?? null,
+            'level_name' => $this->level->name ?? null,
+            'level_number' => $this->level->level ?? null,
+            'specialty_name' => $this->specialty->specialty_name ?? null,
+            'created_at' => $this->created_at ?? null,
+            'updated_at' => $this->updated_at ?? null
         ];
     }
 }

@@ -19,7 +19,7 @@ return new class extends Migration
             $table->string('password');
             $table->string('profile_picture')->nullable();
             $table->boolean('deactivate')->default(false);
-            $table->date('last_login_at')->nullable();
+            $table->string('username', 150);
             $table->enum('status', ['active', 'inactive'])->default('active');
             $table->boolean('dropout_status')->default(false);
             $table->enum('payment_format', ['one time', 'installmental'])->default('installmental');

@@ -88,7 +88,7 @@ class HallController extends Controller
     {
         $authUser = $this->resolveUser();
         $currentSchool = $request->attributes->get('currentSchool');
-        $category = SystemJobCategory::where('name', 'Department')->firstOrFail();
+        $category = SystemJobCategory::where('name', 'Hall')->firstOrFail();
 
         $filePath = $request->file('file')->store(
             "imports/hall/{$currentSchool->id}",
@@ -100,7 +100,7 @@ class HallController extends Controller
         unset($payload['file']);
 
         $systemJob = SystemJob::create([
-            'type'              => 'department_import',
+            'type'              => 'hall_import',
             'context_type'      => Hall::class,
             'stage'             => 'Queued',
             'status'            => 'queued',

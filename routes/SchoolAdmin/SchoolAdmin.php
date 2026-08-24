@@ -42,3 +42,5 @@ Route::post('/bulk-deactivate', [SchoolAdminController::class, 'bulkDeactivateSc
 
 Route::post('/bulk-activate', [SchoolAdminController::class, 'bulkActivateSchoolAdmin'])
     ->name('school-admins.bulk-activate');
+
+Route::post("/import", [SchoolAdminController::class, "importSchoolAdmins"])->name("import.schooladmin");

@@ -21,10 +21,6 @@ return new class extends Migration
             $table->foreign('school_branch_id')->references('id')->on('school_branches');
             $table->string('specialty_id');
             $table->foreign('specialty_id')->references('id')->on('specialties')->onDelete('cascade');
-            $table->string('department_id');
-            $table->foreign('department_id')->references('id')->on('departments')->onDelete('cascade');
-            $table->string('level_id');
-            $table->foreign('level_id')->references('id')->on('levels');
             $table->string('guardian_id');
             $table->foreign('guardian_id')->references('id')->on('parents');
             $table->string('student_batch_id');

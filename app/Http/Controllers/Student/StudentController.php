@@ -4,14 +4,19 @@ namespace App\Http\Controllers\Student;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\UpdateProfilePictureRequest;
-use App\Http\Resources\StudentResource;
-use Exception;
 use Illuminate\Http\Request;
 use App\Services\Student\StudentService;
 use App\Http\Requests\Student\UpdateStudentRequest;
 use App\Http\Requests\Student\BulkAddStudentDropoutRequest;
 use App\Http\Requests\Student\BulkUpdateStudentRequest;
+use App\Http\Requests\Student\ImportStudentRequest;
 use App\Http\Requests\Student\StudentIdRequest;
+use App\Http\Resources\Student\StudentResource;
+use App\Jobs\Student\StudentImportJob;
+use App\Models\Job\SystemJob;
+use App\Models\Job\SystemJobCategory;
+use App\Models\Job\SystemJobDetail;
+use App\Models\Student;
 use App\Services\ApiResponseService;
 use Throwable;
 
@@ -22,7 +27,7 @@ class StudentController extends Controller
     {
         $this->studentService = $studentService;
     }
-    public function getStudentProfileDetails(Request $request, $studentId)
+    public function getStudentProfileDetails(Request $request, string $studentId)
     {
         $currentSchool = $request->attributes->get('currentSchool');
         $profileDetails = $this->studentService->getStudentProfileDetails($currentSchool, $studentId);
@@ -32,16 +37,16 @@ class StudentController extends Controller
     {
         $currentSchool = $request->attributes->get('currentSchool');
         $getStudents = $this->studentService->getStudents($currentSchool);
-        return ApiResponseService::success("Student Fetched Succefully", $getStudents, null, 200);
+        return ApiResponseService::success("Student Fetched Successfully", StudentResource::collection($getStudents), null, 200);
     }
-    public function deleteStudent(Request $request, $studentId)
+    public function deleteStudent(Request $request, string $studentId)
     {
         $authAdmin = $this->resolveUser();
         $currentSchool = $request->attributes->get('currentSchool');
         $deleteStudent = $this->studentService->deleteStudent($studentId, $currentSchool, $authAdmin);
         return ApiResponseService::success("Student Deleted Successfully", $deleteStudent, null, 200);
     }
-    public function updateStudent(UpdateStudentRequest $request, $studentId)
+    public function updateStudent(UpdateStudentRequest $request, string $studentId)
     {
         $authAdmin = $this->resolveUser();
         $currentSchool = $request->attributes->get('currentSchool');
@@ -152,6 +157,67 @@ class StudentController extends Controller
         $authStudent = auth()->guard('student')->user();
         $deleteProfilePicture = $this->studentService->deleteProfilePicture($authStudent);
         return ApiResponseService::success("Profile Picture Deleted Successfully", $deleteProfilePicture, null, 200);
+    }
+
+    public function importStudents(ImportStudentRequest $request)
+    {
+        $authUser = $this->resolveUser();
+        $currentSchool = $request->attributes->get('currentSchool');
+        $category = SystemJobCategory::where('name', 'Student')->firstOrFail();
+
+        $filePath = $request->file('file')->store(
+            "imports/student/{$currentSchool->id}",
+            'r2'
+        );
+
+        $payload = $request->validated();
+        $payload['file_path'] = $filePath;
+        unset($payload['file']);
+
+        $systemJob = SystemJob::create([
+            'type'              => 'student_import',
+            'context_type'      => Student::class,
+            'stage'             => 'Queued',
+            'status'            => 'queued',
+            'context_id'        => $currentSchool->id,
+            'initiated_by_id'   => $authUser->id,
+            'category_id'       => $category->id,
+            'initiated_by_type' => $authUser::class,
+            'queue'             => 'database',
+            'started_at'        => now(),
+        ]);
+
+        SystemJobDetail::create([
+            'job_id'           => $systemJob->id,
+            'school_branch_id' => $currentSchool->id,
+            'input'            => [
+                'file_path' => $filePath,
+                'mapping'       => $payload['mapping'],
+                'original'  => $payload,
+            ],
+            'summary'          => null,
+            'result'           => null,
+            'metadata'         => [
+                'last_broadcast_progress' => 0,
+                'last_broadcast_status'   => null,
+                'last_broadcast_at'       => null,
+            ],
+        ]);
+
+        StudentImportJob::dispatch(
+            $authUser->id,
+            $currentSchool->id,
+            $category->id,
+            $systemJob->id,
+            $payload
+        );
+
+        return ApiResponseService::success(
+            'Student Importation Process Initiated Successfully',
+            null,
+            null,
+            200
+        );
     }
     protected function resolveUser()
     {

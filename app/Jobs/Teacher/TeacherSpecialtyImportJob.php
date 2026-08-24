@@ -1,22 +1,21 @@
 <?php
 
-namespace App\Jobs\Specialty;
+namespace App\Jobs\Teacher;
 
 use App\Events\Job\JobEvent;
 use App\Models\Job\SystemJob;
 use App\Models\Job\SystemJobError;
 use App\Models\Schoolbranches;
-use App\Models\Schooladmin;
+use App\Models\Teacher;
 use App\Models\Specialty;
-use App\Models\Department;
-use App\Models\EducationLevels;
 use App\Services\Helpers\Job\JobHelperService;
 use App\Services\Helpers\Job\JobProgressReporterService;
 use App\Services\Helpers\Import\SpreadSheetReadException;
 use App\Services\Helpers\Import\SpreadSheetReaderService;
 use App\Services\Job\JobBroadCastPolicyService;
-use App\Http\Requests\Specialty\CreateSpecialtyRequest;
+use App\Http\Requests\TeacherSpecialty\AssignTeacherRequest;
 use App\Models\Job\SystemJobDetail;
+use App\Models\Schooladmin;
 use App\Services\Helpers\Import\ColumnIndexResolverService;
 use App\Services\Helpers\Import\ImportMapRowService;
 use Carbon\Carbon;
@@ -30,7 +29,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Throwable;
 
-class SpecialtyImportJob implements ShouldQueue
+class TeacherSpecialtyImportJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
@@ -46,8 +45,8 @@ class SpecialtyImportJob implements ShouldQueue
     protected string $schoolBranchId;
     protected string $categoryId;
     protected string $jobId;
-    public array $requiredFields = ['specialty_name', 'department_name', 'registration_fee', 'school_fee', 'level'];
-    public array $optionalFields = ['description'];
+    public array $requiredFields = ['specialty', 'level', 'teacher'];
+    public array $optionalFields = [];
 
     private JobProgressReporterService $progressReporter;
     private JobBroadCastPolicyService $policy;
@@ -166,19 +165,17 @@ class SpecialtyImportJob implements ShouldQueue
                     $schoolBranch
                 ) {
 
-
-                    $department = Specialty::query()
-                        ->where('school_branch_id', $schoolBranch->id)
-                        ->where('specialty_name', $normalizePayload['specialty_name'])
-                        ->first();
-
-                    if ($department) {
-                        $department->update($normalizePayload);
-                        $updated++;
-                    } else {
-                        $department = Specialty::create([...$normalizePayload, "school_branch_id" => $schoolBranch->id]);
-                        $created++;
+                    $syncData = [];
+                    $specialty = Specialty::findOrFail($normalizePayload['specialty_id']);
+                    foreach ($normalizePayload['teacher_ids'] as $teacherId) {
+                        if (!empty($teacherId)) {
+                            $syncData[$teacherId] = [
+                                'school_branch_id' => $schoolBranch->id
+                            ];
+                        }
                     }
+                    $specialty->teachers()->syncWithoutDetaching($syncData);
+                    $created++;
                 });
             } catch (Throwable $e) {
                 $skipped++;
@@ -295,23 +292,40 @@ class SpecialtyImportJob implements ShouldQueue
 
     private function normalizeRow(array $payload, string $schoolBranchId): array
     {
-        $payload['department_id'] = !empty($payload['department_name'])
-            ? Department::where('department_name', $payload['department_name'])
-            ->where('school_branch_id', $schoolBranchId)
-            ->value('id')
+        $payload['school_branch_id'] = $schoolBranchId;
+
+        $teacherName = $payload['teacher'] ?? null;
+        $specialtyName = $payload['specialty'] ?? null;
+        $levelName = $payload['level'] ?? null;
+
+        $teacherId = $teacherName
+            ? Teacher::where('school_branch_id', $schoolBranchId)->where('name', $teacherName)->value('id')
             : null;
 
-        $payload['level_id'] = !empty($payload['level'])
-            ? EducationLevels::where('program_name', $payload['level'])
-            ->whereHas('levelType', fn($query) => $query->where('program_name', 'level_start_200'))
-            ->value('id')
-            : null;
+        $payload['teacher_ids'] = $teacherId ? [$teacherId] : [];
+
+        $specialtyId = null;
+        if ($specialtyName && $levelName) {
+            $specialty = Specialty::where('school_branch_id', $schoolBranchId)
+                ->where('specialty_name', $specialtyName)
+                ->whereHas(
+                    'level',
+                    fn($query) => $query
+                        ->where('program_name', $levelName)
+                        ->whereHas('levelType', fn($q) => $q->where('program_name', 'level_start_200'))
+                )
+                ->first();
+
+            $specialtyId = $specialty?->id;
+        }
+
+        $payload['specialty_id'] = $specialtyId;
 
         return $payload;
     }
     private function validateRow(array $payload, int $rowNumber): ?array
     {
-        $request = new CreateSpecialtyRequest();
+        $request = new AssignTeacherRequest();
         $validator = Validator::make($payload, $request->rules());
 
         if ($validator->fails()) {

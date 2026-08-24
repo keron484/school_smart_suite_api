@@ -37,10 +37,6 @@ class Educationlevels extends Model
     {
         return $this->hasMany(AccessedStudent::class);
     }
-    public function instructorAvailability(): HasMany
-    {
-        return $this->hasMany(InstructorAvailability::class);
-    }
     public function feeSchedule(): HasMany
     {
         return $this->hasMany(FeeSchedule::class);
@@ -94,10 +90,6 @@ class Educationlevels extends Model
     public function tuitionFees(): HasMany
     {
         return $this->hasMany(TuitionFees::class);
-    }
-    public function student(): HasMany
-    {
-        return $this->hasMany(Student::class, 'level_id');
     }
     public function exam(): HasMany
     {

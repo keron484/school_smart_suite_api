@@ -29,7 +29,7 @@ class CreateStudentRequest extends FormRequest
             'student_batch_id' => 'required|string|exists:student_batches,id',
             'relationship_id' => 'required|string|exists:stu_par_relationships,id',
             'student_source_id' => 'required|string|exists:student_sources,id',
-            'gender_id' => 'required|string|exists:genders,id'
+            'gender_id' => 'required|string|exists:genders,id',
         ];
     }
 }

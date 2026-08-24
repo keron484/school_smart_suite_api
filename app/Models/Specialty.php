@@ -82,15 +82,6 @@ class Specialty extends Model
     {
         return $this->hasMany(AccessedStudent::class);
     }
-    public function instructorAvailability(): HasMany
-    {
-        return $this->hasMany(InstructorAvailability::class);
-    }
-
-    public function instructorAvailabilitySlot(): HasMany
-    {
-        return $this->hasMany(InstructorAvailabilitySlot::class);
-    }
     public function feeSchedule(): HasMany
     {
         return $this->hasMany(FeeSchedule::class);
@@ -163,7 +154,7 @@ class Specialty extends Model
 
     public function student(): HasMany
     {
-        return $this->hasMany(Student::class);
+        return $this->hasMany(Student::class, 'specialty_id');
     }
 
     public function teacher(): HasMany

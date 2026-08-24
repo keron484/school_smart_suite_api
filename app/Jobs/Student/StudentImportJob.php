@@ -1,22 +1,26 @@
 <?php
 
-namespace App\Jobs\Specialty;
+namespace App\Jobs\Student;
 
 use App\Events\Job\JobEvent;
 use App\Models\Job\SystemJob;
 use App\Models\Job\SystemJobError;
+use App\Models\Parents;
 use App\Models\Schoolbranches;
 use App\Models\Schooladmin;
 use App\Models\Specialty;
-use App\Models\Department;
-use App\Models\EducationLevels;
+use App\Models\Gender;
+use App\Models\Studentbatch;
+use App\Models\Student;
 use App\Services\Helpers\Job\JobHelperService;
 use App\Services\Helpers\Job\JobProgressReporterService;
 use App\Services\Helpers\Import\SpreadSheetReadException;
 use App\Services\Helpers\Import\SpreadSheetReaderService;
 use App\Services\Job\JobBroadCastPolicyService;
-use App\Http\Requests\Specialty\CreateSpecialtyRequest;
+use App\Http\Requests\Student\CreateStudentRequest;
 use App\Models\Job\SystemJobDetail;
+use App\Models\StudentParentRelationship;
+use App\Models\StudentSource;
 use App\Services\Helpers\Import\ColumnIndexResolverService;
 use App\Services\Helpers\Import\ImportMapRowService;
 use Carbon\Carbon;
@@ -30,7 +34,7 @@ use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Throwable;
 
-class SpecialtyImportJob implements ShouldQueue
+class StudentImportJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
@@ -46,8 +50,8 @@ class SpecialtyImportJob implements ShouldQueue
     protected string $schoolBranchId;
     protected string $categoryId;
     protected string $jobId;
-    public array $requiredFields = ['specialty_name', 'department_name', 'registration_fee', 'school_fee', 'level'];
-    public array $optionalFields = ['description'];
+    public array $requiredFields = ['email', 'full_names', 'first_name', 'last_name', 'phone', 'gender', 'specialty', 'level', 'batch', 'relationship', 'student_source', 'dob', 'guardian'];
+    public array $optionalFields = ['fee_payment_format'];
 
     private JobProgressReporterService $progressReporter;
     private JobBroadCastPolicyService $policy;
@@ -76,7 +80,6 @@ class SpecialtyImportJob implements ShouldQueue
         $this->categoryId = $categoryId;
         $this->jobId = $jobId;
     }
-
     public function handle(): void
     {
         $this->jobHelperService = app(JobHelperService::class);
@@ -167,16 +170,16 @@ class SpecialtyImportJob implements ShouldQueue
                 ) {
 
 
-                    $department = Specialty::query()
+                    $student = Student::query()
                         ->where('school_branch_id', $schoolBranch->id)
-                        ->where('specialty_name', $normalizePayload['specialty_name'])
+                        ->where('name', $normalizePayload['full_names'])
                         ->first();
 
-                    if ($department) {
-                        $department->update($normalizePayload);
+                    if ($student) {
+                        $student->update($normalizePayload);
                         $updated++;
                     } else {
-                        $department = Specialty::create([...$normalizePayload, "school_branch_id" => $schoolBranch->id]);
+                        $student = Student::create([...$normalizePayload, "school_branch_id" => $schoolBranch->id]);
                         $created++;
                     }
                 });
@@ -295,23 +298,33 @@ class SpecialtyImportJob implements ShouldQueue
 
     private function normalizeRow(array $payload, string $schoolBranchId): array
     {
-        $payload['department_id'] = !empty($payload['department_name'])
-            ? Department::where('department_name', $payload['department_name'])
-            ->where('school_branch_id', $schoolBranchId)
-            ->value('id')
-            : null;
+        $specialty = Specialty::where('school_branch_id', $schoolBranchId)
+            ->where('specialty_name', $payload['specialty'])
+            ->whereHas(
+                'level',
+                fn($query) => $query
+                    ->where('program_name', $payload['level'])
+                    ->whereHas('levelType', fn($q) => $q->where('program_name', 'level_start_200'))
+            )
+            ->first();
 
-        $payload['level_id'] = !empty($payload['level'])
-            ? EducationLevels::where('program_name', $payload['level'])
-            ->whereHas('levelType', fn($query) => $query->where('program_name', 'level_start_200'))
-            ->value('id')
-            : null;
+        $payload['specialty_id'] = $specialty->id;
+        $payload['department_id'] = $specialty->department_id;
+        $payload['level_id'] = $specialty->level_id;
+
+        $payload['gender_id'] = Gender::where("name", $payload['gender'])->first()->id;
+        $payload['student_source_id'] = StudentSource::where("name", $payload['student_source'])->first()->id;
+        $payload['guardian_id'] = Parents::where("school_branch_id", $schoolBranchId)->where("name", $payload['guardian'])->first()->id;
+
+        $payload['relationship_id'] = StudentParentRelationship::where("name", $payload['relationship'])->first()->id;
+        $payload['student_batch_id'] = Studentbatch::where("school_branch_id", $schoolBranchId)->where("name", $payload['batch'])->first()->id;
+
 
         return $payload;
     }
     private function validateRow(array $payload, int $rowNumber): ?array
     {
-        $request = new CreateSpecialtyRequest();
+        $request = new CreateStudentRequest();
         $validator = Validator::make($payload, $request->rules());
 
         if ($validator->fails()) {

@@ -49,7 +49,7 @@ class SchoolSemester extends Model
     }
     public function instructorAvailability(): HasMany
     {
-        return $this->hasMany(InstructorAvailability::class);
+        return $this->hasMany(InstructorAvailability::class, 'school_semester_id');
     }
     public function feeSchedule(): HasMany
     {
@@ -58,11 +58,6 @@ class SchoolSemester extends Model
     public function semester(): BelongsTo
     {
         return $this->belongsTo(Semester::class, 'semester_id');
-    }
-
-    public function teacherAvailabilitySlot(): HasMany
-    {
-        return $this->hasMany(InstructorAvailabilitySlot::class, 'school_semester_id');
     }
     public function schoolBranch(): BelongsTo
     {

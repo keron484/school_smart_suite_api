@@ -16,13 +16,18 @@ class AdditionalFeeResource extends JsonResource
     {
         return [
             'id' => $this->id,
-            'amount' => $this->amount,
-            'status' => $this->status,
-            'student_name' => $this->student->name,
-            'specialty_name' => $this->specialty->specialty_name,
-            'level_name' => $this->level->name,
-            'level' => $this->level->level,
-            'category' => $this->feeCategory->title
+            'amount' => $this->amount ?? null,
+            'status' => $this->status ?? null,
+            'student_name' => $this->student->name ?? null,
+            'username' => $this->student->username ?? null,
+            'profile_picture' => $this->student->profile_picture ?? null,
+            'specialty_name' => $this->specialty->specialty_name ??  null,
+            'level_name' => $this->level->name ?? null,
+            'level_number' => $this->level->level ?? null,
+            'due_date' => $this->due_date ?? null,
+            'category' => $this->feeCategory->title ?? null,
+            'created_at' => $this->created_at ?? null,
+            'updated_at' => $this->updated_at ?? null
         ];
     }
 }

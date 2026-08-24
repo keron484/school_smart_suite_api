@@ -9,11 +9,16 @@ use App\Models\SchoolBranchApiKey;
 use App\Http\Requests\Auth\UpdateProfilePictureRequest;
 use App\Http\Requests\SchoolAdmin\BulkUpdateSchoolAdminRequest;
 use App\Http\Requests\SchoolAdmin\CreateSchoolSuperAdminRequest;
+use App\Http\Requests\SchoolAdmin\ImportSchoolAdminRequest;
 use App\Http\Requests\SchoolAdmin\UpdateSchoolAdminRequest;
+use App\Jobs\SchoolAdmin\SchoolAdminImportJob;
 use App\Services\SchoolAdmin\SchoolAdminService;
 use Exception;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
+use App\Models\Job\SystemJob;
+use App\Models\Job\SystemJobCategory;
+use App\Models\Job\SystemJobDetail;
+use App\Models\Schooladmin;
 
 class SchoolAdminController extends Controller
 {
@@ -30,7 +35,7 @@ class SchoolAdminController extends Controller
         $updateSchoolAdmin = $this->schoolAdminService->updateSchoolAdmin($request->validated(), $schoolAdminId, $currentSchool, $authAdmin);
         return ApiResponseService::success("Admin Updated Sucessfully", $updateSchoolAdmin, null, 200);
     }
-    public function deleteSchoolAdmin(Request $request, $schoolAdminId)
+    public function deleteSchoolAdmin(Request $request, string $schoolAdminId)
     {
         $authAdmin = $this->resolveUser();
         $currentSchool = $request->attributes->get('currentSchool');
@@ -130,6 +135,67 @@ class SchoolAdminController extends Controller
         $currentSchool = $request->attributes->get('currentSchool');
         $bulkActivateSchoolAdmin = $this->schoolAdminService->bulkActivateSchoolAdmin($request->schoolAdminIds, $currentSchool, $authAdmin);
         return ApiResponseService::success("School Admin Activated Succesfully", $bulkActivateSchoolAdmin, null, 200);
+    }
+
+    public function importSchoolAdmins(ImportSchoolAdminRequest $request)
+    {
+        $authUser = $this->resolveUser();
+        $currentSchool = $request->attributes->get('currentSchool');
+        $category = SystemJobCategory::where('name', 'school admin')->firstOrFail();
+
+        $filePath = $request->file('file')->store(
+            "imports/schooladmin/{$currentSchool->id}",
+            'r2'
+        );
+
+        $payload = $request->validated();
+        $payload['file_path'] = $filePath;
+        unset($payload['file']);
+
+        $systemJob = SystemJob::create([
+            'type'              => 'school_admin_import',
+            'context_type'      => Schooladmin::class,
+            'stage'             => 'Queued',
+            'status'            => 'queued',
+            'context_id'        => $currentSchool->id,
+            'initiated_by_id'   => $authUser->id,
+            'category_id'       => $category->id,
+            'initiated_by_type' => $authUser::class,
+            'queue'             => 'database',
+            'started_at'        => now(),
+        ]);
+
+        SystemJobDetail::create([
+            'job_id'           => $systemJob->id,
+            'school_branch_id' => $currentSchool->id,
+            'input'            => [
+                'file_path' => $filePath,
+                'mapping'       => $payload['mapping'],
+                'original'  => $payload,
+            ],
+            'summary'          => null,
+            'result'           => null,
+            'metadata'         => [
+                'last_broadcast_progress' => 0,
+                'last_broadcast_status'   => null,
+                'last_broadcast_at'       => null,
+            ],
+        ]);
+
+        SchoolAdminImportJob::dispatch(
+            $authUser->id,
+            $currentSchool->id,
+            $category->id,
+            $systemJob->id,
+            $payload
+        );
+
+        return ApiResponseService::success(
+            'School admin Importation Process Initiated Successfully',
+            null,
+            null,
+            200
+        );
     }
     protected function resolveUser()
     {

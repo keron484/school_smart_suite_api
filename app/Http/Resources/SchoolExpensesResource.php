@@ -22,7 +22,7 @@ class SchoolExpensesResource extends JsonResource
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
             'category_id' => $this->schoolexpensescategory->id,
-            'category_name' => $this->schoolexpensescategory->name,
+            'category_name' => $this->schoolexpensescategory->name
         ];
     }
 }

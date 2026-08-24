@@ -90,7 +90,6 @@ class HallImportJob implements ShouldQueue
         $systemJobDetails = SystemJobDetail::where("job_id", $this->jobId)->first();
         $mapping = $systemJobDetails->input['mapping'];
         $filePath = $systemJobDetails->input['file_path'];
-
         $this->jobHelperService->updateJobProgress($systemJob, $this->inProgressStatus, 'Reading file', 0);
         $this->progressReporter->maybeBroadcast($systemJob, 0, $this->inProgressStatus);
 
@@ -168,7 +167,7 @@ class HallImportJob implements ShouldQueue
 
                     $hall = Hall::query()
                         ->where('school_branch_id', $schoolBranch->id)
-                        ->where('hall_name', $normalizePayload['department_name'])
+                        ->where('name', $normalizePayload['name'])
                         ->first();
 
                     if ($hall) {
@@ -304,8 +303,16 @@ class HallImportJob implements ShouldQueue
 
     private function normalizeRow(array $payload, string $schoolBranchId): array
     {
-        $typeNames = collect($payload['types'])->pluck('type')->toArray();
-        $payload['typeIds'] = HallType::whereIn("name", $typeNames)->pluck('id')->toArray();
+        $typeNames = !empty($payload['types']) && is_iterable($payload['types'])
+            ? collect($payload['types'])->pluck('type')->filter()->values()->toArray()
+            : [];
+
+        $payload['typeIds'] = !empty($typeNames)
+            ? HallType::whereIn('name', $typeNames)
+            ->pluck('id')
+            ->map(fn($id) => ['type_id' => $id])
+            ->all()
+            : [];
 
         return $payload;
     }
@@ -365,6 +372,10 @@ class HallImportJob implements ShouldQueue
         )) {
             return;
         }
+        Log::error("Failed School BranchId", [
+            "school_branch_id" => $this->schoolBranchId,
+            "school_branch" => $schoolBranch
+        ]);
 
         event(new JobEvent(
             $schoolAdmin,
@@ -388,8 +399,12 @@ class HallImportJob implements ShouldQueue
         $schoolAdmin = Schooladmin::where("school_branch_id", $this->schoolBranchId)->find($this->adminId);
         $schoolBranch = Schoolbranches::find($this->schoolBranchId);
         $systemJob = SystemJob::find($this->jobId);
+        Log::error("Failed School BranchId", [
+            "school_branch_id" => $this->schoolBranchId,
+            "school_branch" => $schoolBranch
+        ]);
 
-        Log::error("TeacherImportJob [" . ($systemJob?->id ?? $this->jobId) . "] permanently failed.", [
+        Log::error("HallImportJob [" . ($systemJob?->id ?? $this->jobId) . "] permanently failed.", [
             'school_id' => $schoolBranch?->id,
             'error'     => $exception->getMessage(),
             'file'      => $exception->getFile(),

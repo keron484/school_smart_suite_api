@@ -44,7 +44,7 @@ class ParentController extends Controller
         return ApiResponseService::success("Parent Deleted Successfully", $deleteParent, null, 200);
     }
 
-    public function updateParent(UpdateParentRequest $request, $parentId)
+    public function updateParent(UpdateParentRequest $request, string $parentId)
     {
         $currentSchool = $request->attributes->get('currentSchool');
         $authAdmin = $this->resolveUser();

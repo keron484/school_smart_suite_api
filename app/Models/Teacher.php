@@ -130,11 +130,6 @@ class Teacher extends Model
     {
         return $this->hasMany(Courses::class);
     }
-
-    public function instructoravailabilitySlots(): HasMany
-    {
-        return $this->hasMany(InstructorAvailabilitySlot::class);
-    }
     public function eventAudience()
     {
         return $this->morphMany(EventAudience::class, 'audienceable');

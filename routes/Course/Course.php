@@ -14,7 +14,7 @@ Route::get('/active', [CourseController::class, 'getActiveCourses'])
     ->name('courses.active');
 
 Route::get('/specialty/{specialtyId}', [CourseController::class, 'getCoursesGSemesterBspecialtyId'])
-     ->name('course.specialty');
+    ->name('course.specialty');
 
 Route::get('/{courseId}', [CourseController::class, 'getCourseDetails'])
     ->name('courses.show');
@@ -53,3 +53,4 @@ Route::get('/student/{studentId}', [CourseController::class, "getAllCoursesByStu
 Route::get('/semester/{semesterId}/student/{studentId}', [CourseController::class, "getCoursesByStudentIdSemesterId"])->name("get.courses.by.semester.student");
 Route::get('/specialty/{specialtyId}/semester/{semesterId}', [CourseController::class, 'getCoursesBySpecialtySemester'])
     ->name('courses.by-specialty-semester');
+Route::post("/import", [CourseController::class, "importCourses"])->name("import.courses");

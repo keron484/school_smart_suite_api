@@ -7,13 +7,13 @@ use App\Models\ExamJointCourse\ExamJCSessionHall;
 use App\Models\ExamTimetable\ExamSessionHall;
 use App\Models\SemesterTimetable\SemesterTimetableSlot;
 use Illuminate\Database\Eloquent\Model;
-use App\Traits\GeneratesUuid;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Hall extends Model
 {
-    use HasFactory, GeneratesUuid;
+    use HasFactory, HasUuids;
 
     protected $fillable = [
         'name',

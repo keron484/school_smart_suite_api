@@ -21,7 +21,9 @@ class ParentResource extends JsonResource
             'phone' => $this->phone ?? null,
             'total_students' => $this->student->count() ?? 0,
             'contact_method' => $this->preferred_contact_method,
-            'language' => $this->preferred_language
+            'language' => $this->preferred_language,
+            'created_at' => $this->created_at ?? null,
+            'updated_at' => $this->updated_at ?? null
         ];
     }
 }

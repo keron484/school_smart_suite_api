@@ -7,11 +7,16 @@ use App\Http\Requests\Course\CourseIdRequest;
 use App\Http\Requests\Course\CreateCourseRequest;
 use App\Http\Requests\Course\UpdateCourseRequest;
 use App\Http\Requests\Course\BulkUpdateCourseRequest;
+use App\Http\Requests\Course\ImportCourseRequest;
 use App\Http\Resources\CourseResource;
+use App\Jobs\Course\CourseImportJob;
 use App\Models\Courses;
 use App\Services\Course\CourseService;
 use App\Services\ApiResponseService;
 use Illuminate\Http\Request;
+use App\Models\Job\SystemJob;
+use App\Models\Job\SystemJobCategory;
+use App\Models\Job\SystemJobDetail;
 
 class CourseController extends Controller
 {
@@ -158,6 +163,67 @@ class CourseController extends Controller
         $currentSchool = $request->attributes->get('currentSchool');
         $courses =  $this->courseService->getCoursesGSemesterBspecialtyId($currentSchool, $specialtyId);
         return ApiResponseService::success("Courses Grouped By Semester Fetched Successfully", $courses, null, 200);
+    }
+
+    public function importCourses(ImportCourseRequest $request)
+    {
+        $authUser = $this->resolveUser();
+        $currentSchool = $request->attributes->get('currentSchool');
+        $category = SystemJobCategory::where('name', 'Course')->firstOrFail();
+
+        $filePath = $request->file('file')->store(
+            "imports/course/{$currentSchool->id}",
+            'r2'
+        );
+
+        $payload = $request->validated();
+        $payload['file_path'] = $filePath;
+        unset($payload['file']);
+
+        $systemJob = SystemJob::create([
+            'type'              => 'course_import',
+            'context_type'      => Courses::class,
+            'stage'             => 'Queued',
+            'status'            => 'queued',
+            'context_id'        => $currentSchool->id,
+            'initiated_by_id'   => $authUser->id,
+            'category_id'       => $category->id,
+            'initiated_by_type' => $authUser::class,
+            'queue'             => 'database',
+            'started_at'        => now(),
+        ]);
+
+        SystemJobDetail::create([
+            'job_id'           => $systemJob->id,
+            'school_branch_id' => $currentSchool->id,
+            'input'            => [
+                'file_path' => $filePath,
+                'mapping'       => $payload['mapping'],
+                'original'  => $payload,
+            ],
+            'summary'          => null,
+            'result'           => null,
+            'metadata'         => [
+                'last_broadcast_progress' => 0,
+                'last_broadcast_status'   => null,
+                'last_broadcast_at'       => null,
+            ],
+        ]);
+
+        CourseImportJob::dispatch(
+            $authUser->id,
+            $currentSchool->id,
+            $category->id,
+            $systemJob->id,
+            $payload
+        );
+
+        return ApiResponseService::success(
+            'Course Importation Process Initiated Successfully',
+            null,
+            null,
+            200
+        );
     }
 
     protected function resolveUser()

@@ -38,7 +38,6 @@ return new class extends Migration
 
         Schema::create('teacher_availabilities', function (Blueprint $table) {
             $table->string('id')->primary();
-            $table->enum('status', ['added', 'not added'])->default('not added');
             $table->timestamps();
         });
 

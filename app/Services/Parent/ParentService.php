@@ -34,7 +34,7 @@ class ParentService
         );
         return $parent;
     }
-    public function getAllParents($currentSchool)
+    public function getAllParents(object $currentSchool)
     {
         $parents = Parents::Where('school_branch_id', $currentSchool->id)->with('student')->get();
         return $parents;

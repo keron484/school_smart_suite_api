@@ -16,6 +16,7 @@ use App\Models\Teacher;
 use App\Notifications\ActivationCode\Admin\AdminPurchaseSuccessfullNotification;
 use App\Notifications\ActivationCode\Teacher\TeacherSubscribedNotification;
 use App\Notifications\ActivationCode\Student\StudentSubscribedNotification;
+
 class ActivationCodeService
 {
     public function purchaseActivationCode($data, $currentSchool, $authAdmin)
@@ -167,7 +168,18 @@ class ActivationCodeService
         $activationCodes = ActivationCode::Where("school_branch_id", $currentSchool->id)
             ->with(['country', 'activationCodeType'])
             ->get();
-        return $activationCodes;
+        return $activationCodes->map(fn($a) => [
+            "id" => $a->id,
+            "created_at" => $a->created_at,
+            "updated_at" => $a->updated_at,
+            'code' => $a->code,
+            'code_type' => $a->code_type,
+            'status' => $a->status,
+            'used' => $a->used,
+            'price' => $a->price,
+            'duration' => $a->duration,
+            'expires_at' => $a->expires_at,
+        ]);
     }
     public function activateStudentAccount($data, $currentSchool)
     {

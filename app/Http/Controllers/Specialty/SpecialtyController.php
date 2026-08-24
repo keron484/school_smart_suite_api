@@ -113,7 +113,7 @@ class SpecialtyController extends Controller
     {
         $authUser = $this->resolveUser();
         $currentSchool = $request->attributes->get('currentSchool');
-        $category = SystemJobCategory::where('name', 'Department')->firstOrFail();
+        $category = SystemJobCategory::where('name', 'specialty')->firstOrFail();
 
         $filePath = $request->file('file')->store(
             "imports/specialty/{$currentSchool->id}",
@@ -125,7 +125,7 @@ class SpecialtyController extends Controller
         unset($payload['file']);
 
         $systemJob = SystemJob::create([
-            'type'              => 'department_import',
+            'type'              => 'specialty_import',
             'context_type'      => Specialty::class,
             'stage'             => 'Queued',
             'status'            => 'queued',

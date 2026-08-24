@@ -23,7 +23,7 @@ use App\Constant\Analytics\Financial\FinancialAnalyticsEvent as FinancialEventCo
 
 class AdditionalFeeService
 {
-    public function createStudentAdditionalFees(array $data, $currentSchool, $authAdmin)
+    public function createStudentAdditionalFees(array $data, object $currentSchool, object $authAdmin)
     {
         $student = Student::where("school_branch_id", $currentSchool->id)->find($data['student_id']);
         $additionalFee = new AdditionalFees();
@@ -75,7 +75,7 @@ class AdditionalFeeService
         $authAdmin->notify(new AdminAdditionalFeeNotification(1, $data['amount'], $data['reason']));
         return $additionalFee;
     }
-    public function deleteStudentAdditionalFees(string $feeId, $currentSchool, $authAdmin)
+    public function deleteStudentAdditionalFees(string $feeId, object $currentSchool, object $authAdmin)
     {
         $additionalFee = AdditionalFees::where("school_branch_id", $currentSchool->id)
             ->find($feeId);
@@ -122,7 +122,7 @@ class AdditionalFeeService
             );
         }
     }
-    public function updateStudentAdditionalFees(array $data, string $feeId, $currentSchool, $authAdmin)
+    public function updateStudentAdditionalFees(array $data, string $feeId, object $currentSchool, object $authAdmin)
     {
         $additionalFee = AdditionalFees::where("school_branch_id", $currentSchool->id)
             ->with(['student'])->find($feeId);
@@ -195,7 +195,7 @@ class AdditionalFeeService
             );
         }
     }
-    public function getStudentAdditionalFeesStudentId(string $studentId, $currentSchool)
+    public function getStudentAdditionalFeesStudentId(string $studentId, object $currentSchool)
     {
         try {
             $additionalFee = AdditionalFees::where("school_branch_id", $currentSchool->id)
@@ -226,7 +226,7 @@ class AdditionalFeeService
             );
         }
     }
-    public function getAdditionalFeeDetails($currentSchool, string $feeId)
+    public function getAdditionalFeeDetails(object $currentSchool, string $feeId)
     {
         $additionalFeeDetails = AdditionalFees::where("school_branch_id", $currentSchool->id)
             ->with(['student', 'specialty', 'level', 'feeCategory'])
@@ -243,7 +243,7 @@ class AdditionalFeeService
         }
         return $additionalFeeDetails;
     }
-    public function getAdditionalFees($currentSchool)
+    public function getAdditionalFees(object $currentSchool)
     {
         try {
             $data = AdditionalFees::where("school_branch_id", $currentSchool->id)

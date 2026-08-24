@@ -1,22 +1,21 @@
 <?php
 
-namespace App\Jobs\Specialty;
+namespace App\Jobs\SchoolAdmin;
 
 use App\Events\Job\JobEvent;
+use App\Http\Requests\SchoolAdmin\CreateSchoolAdminRequest;
 use App\Models\Job\SystemJob;
 use App\Models\Job\SystemJobError;
 use App\Models\Schoolbranches;
-use App\Models\Schooladmin;
-use App\Models\Specialty;
-use App\Models\Department;
-use App\Models\EducationLevels;
+use App\Services\Helpers\Actor\ActorHelperService;
 use App\Services\Helpers\Job\JobHelperService;
 use App\Services\Helpers\Job\JobProgressReporterService;
 use App\Services\Helpers\Import\SpreadSheetReadException;
 use App\Services\Helpers\Import\SpreadSheetReaderService;
 use App\Services\Job\JobBroadCastPolicyService;
-use App\Http\Requests\Specialty\CreateSpecialtyRequest;
+use App\Models\Gender;
 use App\Models\Job\SystemJobDetail;
+use App\Models\Schooladmin;
 use App\Services\Helpers\Import\ColumnIndexResolverService;
 use App\Services\Helpers\Import\ImportMapRowService;
 use Carbon\Carbon;
@@ -26,11 +25,12 @@ use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Throwable;
 
-class SpecialtyImportJob implements ShouldQueue
+class SchoolAdminImportJob implements ShouldQueue
 {
     use Dispatchable, InteractsWithQueue, Queueable, SerializesModels;
 
@@ -46,8 +46,8 @@ class SpecialtyImportJob implements ShouldQueue
     protected string $schoolBranchId;
     protected string $categoryId;
     protected string $jobId;
-    public array $requiredFields = ['specialty_name', 'department_name', 'registration_fee', 'school_fee', 'level'];
-    public array $optionalFields = ['description'];
+    public array $requiredFields = ['email', 'full_names', 'first_name', 'last_name', 'phone'];
+    public array $optionalFields = ['address', 'gender'];
 
     private JobProgressReporterService $progressReporter;
     private JobBroadCastPolicyService $policy;
@@ -148,8 +148,8 @@ class SpecialtyImportJob implements ShouldQueue
         foreach ($dataRows as $index => $row) {
             $rowNumber = $index + 2;
             $payload = $this->importMapRowService->mapRow($row->toArray(), $columnIndexes);
-            $normalizePayload = $this->normalizeRow($payload, $schoolBranch->id);
-            $validationError = $this->validateRow($normalizePayload, $rowNumber);
+            $normalizedPayload = $this->normalizeRow($payload, $this->schoolBranchId);
+            $validationError = $this->validateRow($normalizedPayload, $rowNumber);
             if ($validationError !== null) {
                 $skipped++;
                 $errors[] = $validationError;
@@ -160,25 +160,26 @@ class SpecialtyImportJob implements ShouldQueue
 
             try {
                 DB::transaction(function () use (
-                    $normalizePayload,
+                    $normalizedPayload,
                     &$created,
                     &$updated,
                     $schoolBranch
                 ) {
 
-
-                    $department = Specialty::query()
+                    $sAdmin = Schooladmin::query()
                         ->where('school_branch_id', $schoolBranch->id)
-                        ->where('specialty_name', $normalizePayload['specialty_name'])
+                        ->where('email', $normalizedPayload['email'])
                         ->first();
 
-                    if ($department) {
-                        $department->update($normalizePayload);
+                    if ($sAdmin) {
+                        $sAdmin->update($normalizedPayload);
                         $updated++;
                     } else {
-                        $department = Specialty::create([...$normalizePayload, "school_branch_id" => $schoolBranch->id]);
+                        $sAdmin  = Schooladmin::create($normalizedPayload);
                         $created++;
                     }
+
+                   $sAdmin->assignRole('schoolAdmin');
                 });
             } catch (Throwable $e) {
                 $skipped++;
@@ -292,26 +293,32 @@ class SpecialtyImportJob implements ShouldQueue
             $this->batchSkipped = 0;
         }
     }
-
     private function normalizeRow(array $payload, string $schoolBranchId): array
     {
-        $payload['department_id'] = !empty($payload['department_name'])
-            ? Department::where('department_name', $payload['department_name'])
-            ->where('school_branch_id', $schoolBranchId)
-            ->value('id')
-            : null;
+        $actorHelper = app(ActorHelperService::class);
 
-        $payload['level_id'] = !empty($payload['level'])
-            ? EducationLevels::where('program_name', $payload['level'])
-            ->whereHas('levelType', fn($query) => $query->where('program_name', 'level_start_200'))
-            ->value('id')
+        $fullName = trim((string) ($payload['full_names'] ?? ''));
+
+        $payload['password'] = Hash::make($actorHelper->generateRandomPassword());
+        $payload['username'] = $fullName !== ''
+            ? $actorHelper->generateUsername($fullName, Schooladmin::class)
             : null;
+            $payload['school_branch_id'] = $schoolBranchId;
+        $payload['status'] = 'active';
+        $payload['name'] = $fullName;
+
+        $payload['gender_id'] = Gender::where("name", $payload['gender'])->first()->id;
+
+        if (isset($payload['gender']) && trim((string) $payload['gender']) !== '') {
+            $payload['gender'] = strtolower(trim((string) $payload['gender']));
+        }
 
         return $payload;
     }
+
     private function validateRow(array $payload, int $rowNumber): ?array
     {
-        $request = new CreateSpecialtyRequest();
+        $request = new CreateSchoolAdminRequest();
         $validator = Validator::make($payload, $request->rules());
 
         if ($validator->fails()) {

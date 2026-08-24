@@ -30,17 +30,17 @@ class Student extends Model
         'name',
         'first_name',
         'last_name',
+        'username',
         'DOB',
         'gender_id',
         'phone',
-        'level_id',
         'school_branch_id',
         'specialty_id',
-        'department_id',
         'guardian_id',
         'student_batch_id',
         'account_status',
         'payment_format',
+        'dropout_status',
         'email',
         'password',
         "sub_status",
@@ -67,11 +67,15 @@ class Student extends Model
     protected function casts(): array
     {
         return [
-            'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'dropout_status' => 'boolean'
         ];
     }
 
+    public function relationship(): BelongsTo
+    {
+        return $this->belongsTo(StudentParentRelationship::class, 'relationship_id');
+    }
     public function systemJob(): MorphMany
     {
         return $this->morphMany(SystemJob::class, 'initiatedBy');
@@ -185,11 +189,6 @@ class Student extends Model
         return $this->hasMany(Courses::class);
     }
 
-    public function department(): BelongsTo
-    {
-        return $this->belongsTo(Department::class, 'department_id');
-    }
-
     public function exams(): HasMany
     {
         return $this->hasMany(Exams::class);
@@ -234,11 +233,6 @@ class Student extends Model
     public function specialty(): BelongsTo
     {
         return $this->belongsTo(Specialty::class, 'specialty_id');
-    }
-
-    public function level(): BelongsTo
-    {
-        return $this->belongsTo(Educationlevels::class, 'level_id');
     }
 
     public function resitResults(): HasMany

@@ -6,15 +6,15 @@ use App\Models\InstructorAvailability;
 use App\Models\InstructorAvailabilitySlot;
 use App\Models\SchoolSemester;
 use App\Models\Teacher;
-use App\Models\TeacherSpecailtyPreference;
+use App\Models\Teacher\TeacherSpecialty;
 use App\Notifications\AvailabilitySubmitted;
 use Illuminate\Support\Facades\DB;
 use Exception;
-use App\Events\Actions\AdminActionEvent;
+use Carbon\Carbon;
 
 class TeacherPreferedTeachingTimeService
 {
-    public function createInstructorAvailability(array $instructorAvailabilities, $currentSchool): array
+    public function createInstructorAvailability(array $instructorAvailabilities, object $currentSchool): array
     {
         DB::beginTransaction();
         $schoolSemester = null;
@@ -34,7 +34,6 @@ class TeacherPreferedTeachingTimeService
                 }
                 if ($instructorAvailability == null) {
                     $instructorAvailability =  InstructorAvailability::where("school_branch_id", $currentSchool)
-                        ->where("school_semester_id", $availability['school_semester_id'])
                         ->findOrFail($availability['teacher_availability_id']);
                 }
                 if ($instructorAvailability == 'added') {
@@ -46,14 +45,10 @@ class TeacherPreferedTeachingTimeService
                 $availability->day_of_week = $availability['day_of_week'];
                 $availability->start_time = $availability['start_time'];
                 $availability->end_time = $availability['end_time'];
-                $availability->level_id = $schoolSemester->specialty->level_id ?? null;
-                $availability->specialty_id = $schoolSemester->specialty_id ?? null;
-                $availability->school_semester_id = $availability['school_semester_id'];
                 $availability->teacher_availability_id = $availability['teacher_availability_id'];
                 $availability->save();
                 $result[] = $availability;
             }
-            $instructorAvailability->status = 'added';
             $instructorAvailability->save();
             DB::commit();
             $availabilityData = [
@@ -69,9 +64,8 @@ class TeacherPreferedTeachingTimeService
             throw $e;
         }
     }
-    public function createAvialabilityByOtherSlots(string $targetAvailabilityId, string $availabilityId, $currentSchool)
+    public function createAvialabilityByOtherSlots(string $targetAvailabilityId, string $availabilityId, object $currentSchool)
     {
-        //targetAvailability refers to the availability we are going to use or will be using to populate the desired avaialability slots
         try {
             DB::beginTransaction();
             $availability = InstructorAvailability::where("school_branch_id", $currentSchool->id)
@@ -89,10 +83,7 @@ class TeacherPreferedTeachingTimeService
                     'day_of_week' => $availabilitySlot['day_of_week'],
                     'school_branch_id' => $currentSchool->id,
                     'start_time' => $availabilitySlot['start_time'],
-                    'specialty_id' => $availability->specialty_id,
-                    'level_id' => $availability->level_id,
                     'end_time' => $availabilitySlot['end_time'],
-                    'school_semester_id' => $availability->school_semester_id
                 ]);
             }
             DB::commit();
@@ -101,7 +92,7 @@ class TeacherPreferedTeachingTimeService
             throw $e;
         }
     }
-    public function deleteAvailabilitySlots(string $availabilityId, $currentSchool, string $teacherId)
+    public function deleteAvailabilitySlots(string $availabilityId, object $currentSchool, string $teacherId)
     {
         $result = [];
         $teacherAvailabilitySlots = InstructorAvailabilitySlot::where('teacher_availability_id', $availabilityId)
@@ -114,9 +105,9 @@ class TeacherPreferedTeachingTimeService
         }
         return $result;
     }
-    public function getSchoolSemestersByTeacherSpecialtyPreference($currentSchool, string $teacherId)
+    public function getSchoolSemestersByTeacherSpecialtyPreference(object $currentSchool, string $teacherId)
     {
-        $specialtyIds = TeacherSpecailtyPreference::where('school_branch_id', $currentSchool->id)
+        $specialtyIds = TeacherSpecialty::where('school_branch_id', $currentSchool->id)
             ->where('teacher_id', $teacherId)
             ->distinct()
             ->pluck('specialty_id');
@@ -133,13 +124,14 @@ class TeacherPreferedTeachingTimeService
 
         return $schoolSemesters;
     }
-    public function bulkUpdateInstructorAvailability(array $instructorAvailabilities, $currentSchool): array
+    public function bulkUpdateInstructorAvailability(array $instructorAvailabilities, object $currentSchool): array
     {
         DB::beginTransaction();
 
         try {
             foreach ($instructorAvailabilities as $availability) {
-                $existingAvailability = InstructorAvailabilitySlot::find($availability['slot_id']);
+                $existingAvailability = InstructorAvailabilitySlot::where("school_branch_id", $currentSchool->id)
+                    ->find($availability['slot_id']);
 
                 if (!$existingAvailability) {
                     throw new Exception('Instructor availability record with ID ' . $availability['slot_id'] . ' not found.');
@@ -156,28 +148,38 @@ class TeacherPreferedTeachingTimeService
             throw $e;
         }
     }
-    public function getInstructorAvailabilities($currentSchool)
+    public function getInstructorAvailabilities(object $currentSchool)
     {
         $instructorAvailabilities = InstructorAvailability::where("school_branch_id", $currentSchool->id)
-            ->with(['teacher', 'level', 'schoolSemester.semester', 'specialty'])
+            ->with([
+                'teacher',
+                'schoolSemester.semester',
+                'schoolSemester.schoolYear.specialty.level',
+                'schoolSemester.schoolYear.systemAcademicYear',
+                'instructorAvailabilitySlot'
+            ])
             ->get();
         return $instructorAvailabilities->map(fn($availability) => [
             "id" => $availability->id,
             "name" => $availability->teacher->name ?? null,
+            "username" => $availability->teacher->username ?? null,
             "profile_picture" => $availability->teacher->profile_picture ?? null,
             "teacher_id" => $availability->teacher->id ?? null,
-            "semester" => $availability->schoolSemester->semester->name ?? null,
-            "semester_id" => $availability->schoolSemester->semester->id ?? null,
+            "semester" => $availability->schoolSemester?->semester?->name ?? null,
+            "semester_id" => $availability->schoolSemester?->semester?->id ?? null,
             "school_semester_id" => $availability->school_semester_id ?? null,
-            "specialty_id" => $availability->specialty_id ?? null,
-            "specialty_name" => $availability->specialty->specialty_name ?? null,
-            "level_id" => $availability->level->id,
-            "level_name" => $availability->level->name ?? null,
-            "level_number" => $availability->level->level ?? null,
-            "status" => $availability->status
+            "specialty_id" => $availability->schoolSemester?->schoolYear?->specialty?->id ?? null,
+            "specialty_name" => $availability->schoolSemester?->schoolYear?->specialty?->specialty_name ?? null,
+            "level_id" => $availability->schoolSemester?->schoolYear?->specialty?->level?->id ?? null,
+            "level_name" => $availability->schoolSemester?->schoolYear?->specialty?->level?->name ?? null,
+            "level_number" => $availability->schoolSemester?->schoolYear?->specialty?->level?->level ?? null,
+            "academic_year" => $availability->schoolSemester?->schoolYear?->systemAcademicYear?->name ?? null,
+            "semester_start_date" => $availability->schoolSemester?->start_date ?? null,
+            "semester_end_date" => $availability->schoolSemester?->end_date ?? null,
+            "status" => $availability->instructorAvailabilitySlot->count() > 0 ? 'added' : 'not_added'
         ]);
     }
-    public function getInstructorAvailabilitesByTeacher($currentSchool, $teacherId)
+    public function getInstructorAvailabilitesByTeacher(object $currentSchool, string $teacherId)
     {
         $instructorAvailabilities = InstructorAvailability::where("school_branch_id", $currentSchool->id)
             ->where('teacher_id', $teacherId)
@@ -185,25 +187,98 @@ class TeacherPreferedTeachingTimeService
             ->get();
         return $instructorAvailabilities;
     }
-    public function getInstructorAvailabilityDetails($currentSchool, string $availabilityId)
+    public function getInstructorAvailabilityDetails(object $currentSchool, string $availabilityId)
     {
-        $instructorAvailabilities = InstructorAvailability::where("school_branch_id", $currentSchool->id)
-            ->with(['teacher', 'level', 'schoolSemester', 'specialty'])
+        $instructorAvailabilty = InstructorAvailability::where("school_branch_id", $currentSchool->id)
+            ->with([
+                'teacher',
+                'schoolSemester.semester',
+                'schoolSemester.schoolYear.specialty.level',
+                'schoolSemester.schoolYear.systemAcademicYear',
+                'instructorAvailabilitySlot'
+            ])
             ->find($availabilityId);
-        return $instructorAvailabilities;
+        return $instructorAvailabilty;
     }
-    public function getAvailabilitySlotsByTeacher($currentSchool, string $availabilityId)
+    public function getAvailabilitySlots(object $currentSchool, string $availabilityId)
     {
-        return InstructorAvailabilitySlot::where('school_branch_id', $currentSchool->id)
-            ->where('teacher_availability_id', $availabilityId)
-            ->get()
+        $instructorAvailability = InstructorAvailability::where("school_branch_id", $currentSchool->id)
+            ->with([
+                'teacher',
+                'schoolSemester.semester',
+                'schoolSemester.schoolYear.specialty.level',
+                'schoolSemester.schoolYear.systemAcademicYear',
+                'instructorAvailabilitySlot'
+            ])
+            ->find($availabilityId);
+
+        if (!$instructorAvailability) {
+            return null;
+        }
+
+        $slots = $instructorAvailability->instructorAvailabilitySlot;
+
+        $prefTimes = $slots
             ->groupBy('day_of_week')
-            ->map(fn($slots, $day) => [
+            ->map(fn($daySlots, $day) => [
                 'day'   => $day,
-                'short' => substr(strtolower($day), 0, 3), // mon, tue, wed...
-                'slots' => $slots->values()->toArray(),
+                'short' => substr(strtolower($day), 0, 3),
+                'slots' => $daySlots->map(function ($slot) {
+                    $startTime = $slot->start_time instanceof Carbon
+                        ? $slot->start_time->format('h:i')
+                        : date('h:i', strtotime($slot->start_time));
+
+                    $endTime = $slot->end_time instanceof Carbon
+                        ? $slot->end_time->format('h:i')
+                        : date('h:i', strtotime($slot->end_time));
+
+                    return [
+                        'id'         => $slot->id,
+                        'start_time' => $slot->start_time,
+                        'end_time'   => $slot->end_time,
+                        'time_range' => "{$startTime} - {$endTime}",
+                    ];
+                })->values()->toArray(),
             ])
             ->values()
             ->all();
+
+        $totalWeeklyMinutes = 0;
+        $totalDailyHours = [];
+
+        foreach ($slots->groupBy('day_of_week') as $day => $daySlots) {
+            $dayMinutes = 0;
+
+            foreach ($daySlots as $slot) {
+                $start = Carbon::parse($slot->start_time);
+                $end = Carbon::parse($slot->end_time);
+
+                $duration = $start->diffInMinutes($end);
+                $dayMinutes += $duration;
+                $totalWeeklyMinutes += $duration;
+            }
+
+            $totalDailyHours[$day] = round($dayMinutes / 60, 2);
+        }
+
+        $latestSlotUpdate = $slots->max('updated_at');
+        $parentUpdate = $instructorAvailability->updated_at;
+
+        $lastUpdated = max(
+            Carbon::parse($parentUpdate),
+            Carbon::parse($latestSlotUpdate)
+        );
+
+        return [
+            "teacher"         => $instructorAvailability->teacher,
+            "school_semester" => $instructorAvailability->schoolSemester,
+            "pref_times"      => $prefTimes,
+            "summary"         => [
+                "total_weekly_hours" => round($totalWeeklyMinutes / 60, 2),
+                "total_daily_hours"  => $totalDailyHours,
+                "last_updated_at"    => $lastUpdated ? $lastUpdated->toDateTimeString() : null,
+                "last_updated_human" => $lastUpdated ? $lastUpdated->diffForHumans() : null,
+            ]
+        ];
     }
 }
