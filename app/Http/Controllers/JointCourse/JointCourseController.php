@@ -35,7 +35,6 @@ class JointCourseController extends Controller
         $updatedCourse = $this->jointCourseService->updateJointCourse(
             $request->validated(),
             $jointCourseId,
-            $this->resolveUser(),
             $currentSchool
         );
         return ApiResponseService::success("Joint course updated successfully", $updatedCourse, null, 200);

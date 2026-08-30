@@ -13,7 +13,6 @@ class SchoolGradesConfig extends Model
 
     protected $fillable = [
         'school_branch_id',
-        'isgrades_configured',
         'max_score',
         'grades_category_id'
     ];

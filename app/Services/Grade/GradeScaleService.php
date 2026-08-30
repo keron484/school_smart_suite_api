@@ -4,16 +4,18 @@ namespace App\Services\Grade;
 
 use App\Models\Grades;
 use App\Models\SchoolGradesConfig;
+use App\Models\LetterGrade;
 use Illuminate\Support\Facades\DB;
 use Exception;
 use Throwable;
 use Illuminate\Support\Str;
 use App\Exceptions\AppException;
 use App\Events\Actions\AdminActionEvent;
+use Illuminate\Support\Collection;
 
 class GradeScaleService
 {
-    public function makeGradeForExam(array $grades, $currentSchool, $authAdmin)
+    public function createGradeScale(array $grades, object $currentSchool, object $authAdmin)
     {
         try {
             DB::beginTransaction();
@@ -73,7 +75,7 @@ class GradeScaleService
             throw $e;
         }
     }
-    public function bulkCreateExamGrades(array $data, $currentSchool, $authAdmin)
+    public function bulkCreateGradeScale(array $data, object $currentSchool, object $authAdmin)
     {
         DB::beginTransaction();
         try {
@@ -148,7 +150,7 @@ class GradeScaleService
             throw $e;
         }
     }
-    public function updateExamGrades(array $grades, $currentSchool, $authAdmin): bool
+    public function updateGradeScale(array $grades, object $currentSchool, object $authAdmin): bool
     {
         if (empty($grades)) {
             return true;
@@ -190,7 +192,7 @@ class GradeScaleService
             throw $e;
         }
     }
-    public function configureByOtherGrades($configId, $currentSchool, $targetConfigId, $authAdmin)
+    public function configureByOtherScale(string $configId, object $currentSchool, string $targetConfigId, object $authAdmin)
     {
         $insertedGrades = [];
         DB::beginTransaction();
@@ -250,7 +252,7 @@ class GradeScaleService
             throw $e;
         }
     }
-    public function bulkConfigureByOtherGrades($data, $currentSchool, $authAdmin)
+    public function bulkConfigureByOtherScales(array $data, object $currentSchool, object $authAdmin)
     {
         DB::beginTransaction();
         try {
@@ -330,23 +332,69 @@ class GradeScaleService
             throw $e;
         }
     }
-    public function getGradeConfigDetails($currentSchool, $configId)
+    public function getGradeScaleCategoryId(object $currentSchool, string $categoryId)
     {
         try {
-            $schoolGradesConfig = SchoolGradesConfig::where("school_branch_id", $currentSchool->id)->find($configId);
-            if (!$schoolGradesConfig) {
-                throw new Exception("School Grades Configuration Not Found", 404);
+            $schoolGradeScaleCategory = SchoolGradesConfig::where("school_branch_id", $currentSchool->id)
+                ->with(['gradesCategory'])
+                ->find($categoryId);
+
+            if (!$schoolGradeScaleCategory) {
+                throw new Exception("Grade Scale Category not found", 404);
             }
-            $grades = Grades::where("school_branch_id", $currentSchool->id)
-                ->where("grades_category_id", $schoolGradesConfig->grades_category_id)
-                ->with(['lettergrade'])
-                ->get();
-            return $grades;
+            $configuredGrades = Grades::where("school_branch_id", $currentSchool->id)
+                ->where("grades_category_id", $schoolGradeScaleCategory->grades_category_id)
+                ->get()
+                ->keyBy('letter_grade_id');
+
+            $allLetterGrades = LetterGrade::all();
+
+            return $this->formatGradeResponse($allLetterGrades, $configuredGrades, $schoolGradeScaleCategory);
         } catch (Exception $e) {
             throw $e;
         }
     }
-    public function deleteGradesConfig($currentSchool, $configId, $authAdmin)
+
+    private function formatGradeResponse(
+        Collection $allLetterGrades,
+        Collection $configuredGrades,
+        SchoolGradesConfig $schoolGradesConfig
+    ): array {
+        $category = [
+            'id' => $schoolGradesConfig->grades_category_id,
+            'name' => $schoolGradesConfig->gradesCategory->title ?? null,
+            'maximum_score' => $schoolGradesConfig->max_score ?? null,
+            'is_configured' => $configuredGrades->isNotEmpty()
+        ];
+
+        $formattedGrades = [];
+
+        foreach ($allLetterGrades as $letterGrade) {
+            $configuredGrade = $configuredGrades->get($letterGrade->id);
+            $formattedGrades[] = [
+                'letter_grade_id' => $letterGrade->id,
+                'letter_grade' => $letterGrade->letter_grade,
+                'configuration' => [
+                    'id' => $configuredGrade->id ?? null,
+                    'min_score' => $configuredGrade ? (float) $configuredGrade->minimum_score : null,
+                    'max_score' => $configuredGrade ? (float) $configuredGrade->maximum_score : null,
+                    'grade_point' => $configuredGrade ? (float) $configuredGrade->grade_points : null,
+                    'performance' => $configuredGrade ? $configuredGrade->determinant : null,
+                    'result' => $configuredGrade ? $configuredGrade->grade_status : null,
+                    'resit_result' => $configuredGrade ? $configuredGrade->result_status : null,
+                    'is_configured' => $configuredGrade &&
+                        $configuredGrade->minimum_score !== null &&
+                        $configuredGrade->maximum_score !== null
+                ]
+            ];
+        }
+
+        return [
+            'category' => $category,
+            'grades' => $formattedGrades
+        ];
+    }
+    public function deleteGradesConfig(object $currentSchool, string $configId, object $authAdmin)
     {
         try {
             DB::beginTransaction();
@@ -381,7 +429,7 @@ class GradeScaleService
             throw $e;
         }
     }
-    public function bulkDeleteGradesConfig($currentSchool, $data, $authAdmin)
+    public function bulkDeleteGradesConfig(object $currentSchool, array $data, object $authAdmin)
     {
         try {
             DB::beginTransaction();

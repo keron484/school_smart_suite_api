@@ -23,7 +23,7 @@ class SchoolGradeScaleCategoryController extends Controller
         return ApiResponseService::success("School Grades Config fetched Succesfully",  SchoolGradeConfigResource::collection($getSchoolGradesConfig), null, 200);
     }
 
-    public function getSchoolGradeScaleSchoolGradeCategoryId(Request $request, $schoolGradeCategoryId)
+    public function getSchoolGradeScaleSchoolGradeCategoryId(Request $request, string $schoolGradeCategoryId)
     {
         $currentSchool = $request->attributes->get('currentSchool');
         $gradingBySchoolGradeConfig = $this->schoolGradesConfigService->getGradeScaleSchoolGradeCategoryId($currentSchool, $schoolGradeCategoryId);

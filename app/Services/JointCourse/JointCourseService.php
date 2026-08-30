@@ -15,7 +15,7 @@ class JointCourseService
 {
     public function createJointCourse(object $currentSchool, array $data,  $authAdmin)
     {
-        if(count($data['specialtyIds']) < 2){
+        if (count($data['specialtyIds']) < 2) {
             throw new AppException(
                 "A joint course must be associated with at least two specialties",
                 400,
@@ -63,8 +63,8 @@ class JointCourseService
             $course->types()->sync($syncData);
         }
 
-        if(!empty($data["specialtyIds"])){
-              $syncData = collect($data['specialtyIds'])
+        if (!empty($data["specialtyIds"])) {
+            $syncData = collect($data['specialtyIds'])
                 ->mapWithKeys(fn($specialtyId) => [
                     $specialtyId => ['school_branch_id' => $currentSchool->id],
                 ])
@@ -72,49 +72,12 @@ class JointCourseService
 
             $course->specialties()->sync($syncData);
         }
-        // foreach ($specialties as $specialty) {
-        //     CourseSpecialty::create([
-        //         'school_branch_id' => $specialty->school_branch_id,
-        //         'specialty_id' => $specialty->id,
-        //         'course_id' => $course->id
-        //     ]);
-        // }
-
-        // AdminActionEvent::dispatch(
-        //     [
-        //         "permissions" =>  ["schoolAdmin.course.create"],
-        //         "roles" => ["schoolSuperAdmin", "schoolAdmin"],
-        //         "schoolBranch" =>  $currentSchool->id,
-        //         "feature" => "courseManagement",
-        //         "action" => "course.created",
-        //         "authAdmin" => $authAdmin,
-        //         "data" => $course,
-        //         "message" => "Course Created",
-        //     ]
-        // );
-        // StudentActionEvent::dispatch([
-        //     'schoolBranch'  => $currentSchool->id,
-        //     'specialtyIds'  => [$specialty->id],
-        //     'feature'       => 'courseCreate',
-        //     'message'       => "New Course Created",
-        //     'data'          => $course,
-        // ]);
-        // event(new OperationalAnalyticsEvent(
-        //     eventType: OperationalEvent::COURSE_CREATED,
-        //     version: 1,
-        //     payload: [
-        //         "school_branch_id" => $currentSchool,
-        //         "specialty_id" => $specialty->id,
-        //         "department_id" => $specialty->department_id,
-        //         "level_id" => $specialty->level_id,
-        //         "value" => 1
-        //     ]
-        // ));
         return $course;
     }
-    public function updateJointCourse(array $updateData, string $jointCourseId, $authAdmin, object $currentSchool)
+    public function updateJointCourse(array $updateData, string $jointCourseId, object $currentSchool): Courses
     {
-        $course = Courses::where("school_branch_id", $currentSchool->id)
+        $course = Courses::with(['specialties.level', 'types'])
+            ->where("school_branch_id", $currentSchool->id)
             ->find($jointCourseId);
 
         if (!$course) {
@@ -153,100 +116,92 @@ class JointCourseService
             }
         }
 
-        if (array_key_exists('typeIds', $updateData)) {
-            $syncData = collect($updateData['typeIds'] ?? [])
-                ->pluck('type_id')
-                ->mapWithKeys(fn($typeId) => [
-                    $typeId => ['school_branch_id' => $currentSchool->id],
-                ])
-                ->toArray();
+        return DB::transaction(function () use ($course, $updateData, $currentSchool, $filteredData) {
 
-            $course->types()->sync($syncData);
-        }
+            if (array_key_exists('typeIds', $updateData)) {
+                $syncData = collect($updateData['typeIds'] ?? [])
+                    ->pluck('type_id')
+                    ->filter()
+                    ->mapWithKeys(fn($typeId) => [
+                        $typeId => ['school_branch_id' => $currentSchool->id],
+                    ])
+                    ->toArray();
 
-        if (array_key_exists('specialtyIds', $updateData)) {
-            $newSpecialtyIds = collect($updateData['specialtyIds'])
-                ->filter()
-                ->unique()
-                ->values()
-                ->toArray();
+                $course->types()->sync($syncData);
+            }
 
-            $currentSpecialtyIds = DB::table('joint_courses')
-                ->where('course_id', $course->id)
-                ->where('school_branch_id', $currentSchool->id)
-                ->pluck('specialty_id')
-                ->toArray();
+            if (array_key_exists('specialtyIds', $updateData)) {
+                $newSpecialtyIds = collect($updateData['specialtyIds'])
+                    ->filter()
+                    ->unique()
+                    ->values()
+                    ->toArray();
 
-            $validNewSpecialtyIds = [];
-            if (!empty($newSpecialtyIds)) {
-                $validNewSpecialtyIds = Specialty::where('school_branch_id', $currentSchool->id)
+                if (count($newSpecialtyIds) < 2) {
+                    throw new AppException(
+                        "A joint course must be associated with at least two specialties",
+                        400,
+                        "Invalid Joint Course",
+                        "Please select at least two specialties to associate with this joint course.",
+                        null
+                    );
+                }
+
+                $validSpecialties = Specialty::where('school_branch_id', $currentSchool->id)
                     ->whereIn('id', $newSpecialtyIds)
                     ->pluck('id')
                     ->toArray();
+
+                if (count($validSpecialties) !== count($newSpecialtyIds)) {
+                    throw new AppException(
+                        "One or more selected specialties are invalid or do not belong to this school",
+                        400,
+                        "Invalid Specialty",
+                        "Please select valid specialties for this course.",
+                        '/specialties'
+                    );
+                }
+
+                $syncData = collect($validSpecialties)
+                    ->mapWithKeys(fn($specialtyId) => [
+                        $specialtyId => ['school_branch_id' => $currentSchool->id],
+                    ])
+                    ->toArray();
+
+                $course->specialties()->sync($syncData);
             }
 
-            $toRemove = array_diff($currentSpecialtyIds, $validNewSpecialtyIds);
-            $toAdd    = array_diff($validNewSpecialtyIds, $currentSpecialtyIds);
+            $course->update($filteredData);
 
-            if (!empty($toRemove)) {
-                DB::table('joint_courses')
-                    ->where('course_id', $course->id)
-                    ->where('school_branch_id', $currentSchool->id)
-                    ->whereIn('specialty_id', $toRemove)
-                    ->delete();
+            AdminActionEvent::dispatch([
+                "permissions"   => ["schoolAdmin.course.update"],
+                "roles"         => ["schoolSuperAdmin", "schoolAdmin"],
+                "schoolBranch"  => $currentSchool->id,
+                "feature"       => "courseManagement",
+                "action"        => "course.updated",
+                "authAdmin"     => auth()->user(),
+                "data"          => $course->fresh(['specialties']),
+                "message"       => "Course Updated",
+            ]);
+
+            $specialtyIds = $course->specialties->pluck('id')->toArray();
+
+            if (empty($specialtyIds) && $course->specialty_id) {
+                $specialtyIds = [$course->specialty_id];
             }
 
-            if (!empty($toAdd)) {
-                $insertData = collect($toAdd)->map(function ($specialtyId) use ($currentSchool, $course) {
-                    return [
-                        'school_branch_id' => $currentSchool->id,
-                        'specialty_id'     => $specialtyId,
-                        'course_id'        => $course->id,
-                        'created_at'       => now(),
-                        'updated_at'       => now(),
-                    ];
-                })->toArray();
+            StudentActionEvent::dispatch([
+                'schoolBranch'  => $currentSchool->id,
+                'specialtyIds'  => $specialtyIds,
+                'feature'       => 'courseUpdate',
+                'message'       => "Course Updated",
+                'data'          => $course->fresh(),
+            ]);
 
-                DB::table('joint_courses')->insert($insertData);
-            }
-        }
-
-        $course->update($filteredData);
-
-        AdminActionEvent::dispatch([
-            "permissions"   => ["schoolAdmin.course.update"],
-            "roles"         => ["schoolSuperAdmin", "schoolAdmin"],
-            "schoolBranch"  => $currentSchool->id,
-            "feature"       => "courseManagement",
-            "action"        => "course.updated",
-            "authAdmin"     => $authAdmin,
-            "data"          => $course,
-            "message"       => "Course Updated",
-        ]);
-
-        $studentSpecialtyIds = DB::table('joint_courses')
-            ->where('course_id', $course->id)
-            ->where('school_branch_id', $currentSchool->id)
-            ->pluck('specialty_id')
-            ->filter()
-            ->values()
-            ->toArray();
-
-        if (empty($studentSpecialtyIds) && $course->specialty_id) {
-            $studentSpecialtyIds = [$course->specialty_id];
-        }
-
-        StudentActionEvent::dispatch([
-            'schoolBranch'  => $currentSchool->id,
-            'specialtyIds'  => $studentSpecialtyIds,
-            'feature'       => 'courseUpdate',
-            'message'       => "Course Updated",
-            'data'          => $course,
-        ]);
-
-        return $course;
+            return $course;
+        });
     }
-    public function deleteJointCourse(string $jointCourseId, object $currentSchool, $authAdmin)
+    public function deleteJointCourse(string $jointCourseId, object $currentSchool, object $authAdmin)
     {
         $course = Courses::where("school_branch_id", $currentSchool->id)
             ->find($jointCourseId);
@@ -310,7 +265,7 @@ class JointCourseService
             ->having('specialties_count', '>', 1)
             ->get();
 
-        if($courses->isEmpty()){
+        if ($courses->isEmpty()) {
             throw new AppException(
                 "No joint courses found for this school",
                 404,
@@ -320,14 +275,19 @@ class JointCourseService
             );
         }
 
-       return $courses->map(fn($course) => [
+        return $courses->map(fn($course) => [
             "id" => $course->id ?? null,
             "course_code" => $course->course_code ?? null,
+            "course_description" => $course->description ?? null,
             "course_title" => $course->course_title ?? null,
             "course_credit" => $course->credit ?? null,
+            "course_status" => $course->status ?? null,
             "semester_title" => $course->semester->name ?? null,
+            "semester_count" => $course->semester->count ?? null,
             "specialty_count" => $course->specialties->count() ?? null,
             "status" => $course->status ?? null,
+            "created_at" => $course->created_at ?? null,
+            "updated_at" => $course->updated_at ?? null,
         ]);
     }
 }

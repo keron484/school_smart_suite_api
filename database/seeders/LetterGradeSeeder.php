@@ -26,18 +26,16 @@ class LetterGradeSeeder extends Seeder
         }
 
         if (($handle = fopen($filePath, 'r')) !== false) {
-            $header = fgetcsv($handle); // Read the header
+            $header = fgetcsv($handle);
 
-            $letter_grade = []; // Initialize an empty array for countries
+            $letter_grade = [];
 
             while (($data = fgetcsv($handle, 1000, ',')) !== false) {
                 $uuid = Str::uuid()->toString();
-                $id = substr(md5($uuid), 0, 10);
-                // Ensure the row has at least two columns
                 if (count($data) >= 2) {
                     $letter_grade[] = [
-                        'id' => $id, // Assign id from 1st column
-                        'letter_grade' => $data[1], // Assign name from 2nd column
+                        'id' => $uuid,
+                        'letter_grade' => $data[1],
                         'created_at' => $timestamp,
                         'updated_at' => $timestamp
                     ];
@@ -46,7 +44,6 @@ class LetterGradeSeeder extends Seeder
 
             fclose($handle);
 
-            // Insert the countries into the database
             if (!empty($letter_grade)) {
                 DB::table('letter_grades')->insert($letter_grade);
             } else {

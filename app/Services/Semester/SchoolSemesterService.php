@@ -422,7 +422,7 @@ class SchoolSemesterService
     }
     public function getSchoolSemesterDetail(object $currentSchool, string $semesterId)
     {
-        $schoolSemesterDetails = SchoolSemester::with(['specialty', 'specialty.level', 'semester', 'studentBatch', 'schoolYear.systemAcademicYear'])
+        $schoolSemesterDetails = SchoolSemester::with(['schoolYear.specialty.level', 'semester'])
             ->where("school_branch_id", $currentSchool->id)
             ->find($semesterId);
         if ($schoolSemesterDetails === null) {

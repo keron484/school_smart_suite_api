@@ -130,7 +130,7 @@ class CourseController extends Controller
         return ApiResponseService::success("Active Courses Fetched Successfully", $activeCourses, null, 200);
     }
 
-    public function getAllCoursesByStudentId(Request $request, $studentId)
+    public function getAllCoursesByStudentId(Request $request, string $studentId)
     {
         $currentSchool = $request->attributes->get("currentSchool");
         $courses = $this->courseService->getAllCoursesByStudentId($currentSchool, $studentId);
@@ -226,7 +226,7 @@ class CourseController extends Controller
         );
     }
 
-    protected function resolveUser()
+    protected function resolveUser(): ?object
     {
         foreach (['student', 'teacher', 'schooladmin'] as $guard) {
             $user = request()->user($guard);

@@ -11,11 +11,11 @@ return new class extends Migration
         Schema::create('grade_scales', function (Blueprint $table) {
             $table->string('id')->primary();
             $table->decimal('grade_points', 5, 2);
-            $table->enum('grade_status', ['passed', 'failed'])->default('failed');
-            $table->enum('resit_status', ['resit', 'no_resit', 'high_resit_potential', 'low_resit_potential']);
+            $table->enum('result', ['failed', 'passed']);
+            $table->enum('resit_result', ['resit', 'no_resit', 'high_resit_potential', 'low_resit_potential']);
             $table->decimal('minimum_score', 5, 2);
             $table->decimal('maximum_score', 5, 2);
-            $table->string('determinant');
+            $table->string('performance');
             $table->timestamps();
         });
 
@@ -27,7 +27,6 @@ return new class extends Migration
 
         Schema::create('school_grade_scale_categories', function (Blueprint $table) {
             $table->string('id')->primary();
-            $table->boolean('isgrades_configured')->default(false);
             $table->decimal('max_score', 5, 2)->nullable();
             $table->timestamps();
         });

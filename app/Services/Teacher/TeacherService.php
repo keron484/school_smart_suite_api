@@ -18,8 +18,8 @@ class TeacherService
 {
     public function getTeacherDetails(string $teacherId)
     {
-        $find_teacher = Teacher::with(['qualifications', 'levels'])->findOrFail($teacherId);
-        return $find_teacher;
+        $teacher = Teacher::with(['qualifications', 'levels'])->findOrFail($teacherId);
+        return $teacher;
     }
     public function deletetTeacher(string $teacherId, object $currentSchool, object $authAdmin)
     {
@@ -165,17 +165,17 @@ class TeacherService
             ->findOrFail($teacherId);
         $teacher->status = "inactive";
         $teacher->save();
-        AdminActionEvent::dispatch(
-            [
-                "permissions" =>  ["schoolAdmin.teacher.deactivate"],
-                "roles" => ["schoolSuperAdmin", "schoolAdmin"],
-                "schoolBranch" =>  $currentSchool->id,
-                "feature" => "teacherManagement",
-                "authAdmin" => $authAdmin,
-                "data" => $teacher,
-                "message" => "Teacher Account Deactivated",
-            ]
-        );
+        // AdminActionEvent::dispatch(
+        //     [
+        //         "permissions" =>  ["schoolAdmin.teacher.deactivate"],
+        //         "roles" => ["schoolSuperAdmin", "schoolAdmin"],
+        //         "schoolBranch" =>  $currentSchool->id,
+        //         "feature" => "teacherManagement",
+        //         "authAdmin" => $authAdmin,
+        //         "data" => $teacher,
+        //         "message" => "Teacher Account Deactivated",
+        //     ]
+        // );
         return $teacher;
     }
     public function activateTeacher(string $teacherId, object $currentSchool, object $authAdmin)
@@ -184,17 +184,17 @@ class TeacherService
             ->findOrFail($teacherId);
         $teacher->status = "active";
         $teacher->save();
-        AdminActionEvent::dispatch(
-            [
-                "permissions" =>  ["schoolAdmin.teacher.activate"],
-                "roles" => ["schoolSuperAdmin", "schoolAdmin"],
-                "schoolBranch" =>  $currentSchool->id,
-                "feature" => "teacherManagement",
-                "authAdmin" => $authAdmin,
-                "data" => $teacher,
-                "message" => "Teacher Account Activated",
-            ]
-        );
+        // AdminActionEvent::dispatch(
+        //     [
+        //         "permissions" =>  ["schoolAdmin.teacher.activate"],
+        //         "roles" => ["schoolSuperAdmin", "schoolAdmin"],
+        //         "schoolBranch" =>  $currentSchool->id,
+        //         "feature" => "teacherManagement",
+        //         "authAdmin" => $authAdmin,
+        //         "data" => $teacher,
+        //         "message" => "Teacher Account Activated",
+        //     ]
+        // );
         return $teacher;
     }
     public function bulkDeactivateTeacher(array $teacherIds, object $currentSchool, object $authAdmin)
