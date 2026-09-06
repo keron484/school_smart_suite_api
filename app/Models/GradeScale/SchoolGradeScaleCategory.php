@@ -14,7 +14,8 @@ class SchoolGradeScaleCategory extends Model
     protected $fillable = [
         'school_branch_id',
         'max_score',
-        'grades_category_id'
+        'grades_category_id',
+        'status'
     ];
 
     protected $casts = [
@@ -31,6 +32,6 @@ class SchoolGradeScaleCategory extends Model
 
     public function schoolGradeScale(): HasMany
     {
-        return $this->hasMany(SchoolGradeScale::class);
+        return $this->hasMany(SchoolGradeScale::class, 'grades_category_id');
     }
 }

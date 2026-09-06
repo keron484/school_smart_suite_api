@@ -22,6 +22,6 @@ class SystemGradeScaleCategory extends Model
 
     public function schoolGradeScale(): HasMany
     {
-        return $this->hasMany(SchoolGradeScaleCategory::class);
+        return $this->hasMany(SchoolGradeScaleCategory::class, 'grades_category_id');
     }
 }

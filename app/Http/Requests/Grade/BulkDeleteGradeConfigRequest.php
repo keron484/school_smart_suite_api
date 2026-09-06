@@ -17,8 +17,8 @@ class BulkDeleteGradeConfigRequest extends FormRequest
     public function rules(): array
     {
         return [
-           'configIds' => 'required|array',
-           'configIds.*.grade_config_id' => 'required|string|exists:school_grade_scale_categories,id'
+           'grade_scale_category_ids' => 'required|array',
+           'grade_scale_category_ids.*.category_id' => 'required|string|exists:school_grade_scale_categories,id'
         ];
     }
 }

@@ -31,7 +31,6 @@ Route::get('/exams/{examId}/config-data', [SchoolGradeScaleController::class, 'g
 Route::post('/exams/bulk-delete-grades', [SchoolGradeScaleController::class, 'bulkDeleteGrades'])
     ->name('exams.grades.bulk-delete');
 
-Route::post('/import',  [SchoolGradeScaleController::class, 'importGradeScale'])->name('import.grade');
 
 Route::post('/grade-configs/{configId}/target-configs/{targetConfigId}/grades', [SchoolGradeScaleController::class, 'createGradesByOtherGrades'])
     ->name('grade-configs.target-configs.grades.store');

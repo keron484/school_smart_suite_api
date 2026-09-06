@@ -19,7 +19,7 @@ class SchoolGradeScale extends Model
         'result',
         'resit_result',
         'maximum_score',
-        'peformance',
+        'performance',
         'grades_category_id'
     ];
 

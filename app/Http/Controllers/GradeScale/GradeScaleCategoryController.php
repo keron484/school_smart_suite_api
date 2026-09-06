@@ -22,13 +22,13 @@ class GradeScaleCategoryController extends Controller
         return ApiResponseService::success("Grades Category Created Succesfully", $createCategory, null, 201);
     }
 
-    public function updateCategory(UpdateGradesCategoryRequest $request, $categoryId): JsonResponse
+    public function updateCategory(UpdateGradesCategoryRequest $request, string $categoryId): JsonResponse
     {
         $updateCategory = $this->gradesCategoryService->UpdateGradeCategory($request->validated(), $categoryId);
         return ApiResponseService::success("Grades Category Updated Succesfully", $updateCategory, null, 200);
     }
 
-    public function deleteCategory($categoryId): JsonResponse
+    public function deleteCategory(string $categoryId): JsonResponse
     {
         $deleteCategory = $this->gradesCategoryService->deleteGradeCategory($categoryId);
         return ApiResponseService::success("Grades Category Deleted Succesfully", $deleteCategory, null, 200);

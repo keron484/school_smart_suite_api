@@ -17,7 +17,7 @@ return new class extends Migration
             $table->string('letter_grade_id');
             $table->foreign('letter_grade_id')->references('id')->on('letter_grades');
             $table->string('grades_category_id');
-            $table->foreign('grades_category_id')->references('id')->on('grade_scale_categories');
+            $table->foreign('grades_category_id')->references('id')->on('school_grade_scale_categories');
         });
 
         Schema::table('school_grade_scale_categories', function (Blueprint $table) {

@@ -3,18 +3,17 @@
 namespace App\Http\Controllers\GradeScale;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\GradeScale\BulkDeleteGradeScaleRequest;
 use App\Jobs\GradeScale\GradeScaleImportJob;
 use Illuminate\Http\Request;
 use App\Http\Requests\Grade\AutoGenExamGradingRequest;
-use App\Http\Requests\Grade\BulkConfigureByOtherGradesRequest;
-use App\Http\Requests\Grade\BulkCreateGradeRequest;
-use App\Http\Requests\Grade\BulkDeleteGradeConfigRequest;
 use App\Services\Grade\GradeScaleService;
 use App\Services\ApiResponseService;
 use App\Services\Grade\AutoGenExamGradeScaleService;
-use App\Http\Requests\Grade\CreateGradeRequest;
-use App\Http\Requests\Grade\ImportGradeScaleRequest;
-use App\Http\Requests\Grade\UpdateGradeRequest;
+use App\Http\Requests\GradeScale\ImportGradeScaleRequest;
+use App\Http\Requests\GradeScale\BulkCopyGradeScaleRequest;
+use App\Http\Requests\GradeScale\CreateGradeScaleRequest;
+use App\Http\Requests\GradeScale\UpdateGradeScaleRequest;
 use App\Models\GradeScale\SchoolGradeScale;
 use App\Models\Job\SystemJob;
 use App\Models\Job\SystemJobCategory;
@@ -23,84 +22,106 @@ use App\Models\Job\SystemJobDetail;
 
 class SchoolGradeScaleController extends Controller
 {
-    protected GradeScaleService  $addGradesService;
+    protected GradeScaleService  $gradeScaleService;
     protected AutoGenExamGradeScaleService $autoGenExamGradingService;
     public function __construct(
-        GradeScaleService $addGradesService,
+        GradeScaleService $gradeScaleService,
         AutoGenExamGradeScaleService $autoGenExamGradingService
     ) {
-        $this->addGradesService = $addGradesService;
+        $this->gradeScaleService = $gradeScaleService;
         $this->autoGenExamGradingService = $autoGenExamGradingService;
     }
 
-    public function updateExamGrades(UpdateGradeRequest $request)
-    {
-        $authAdmin = $this->resolveUser();
-        $currentSchool = $request->attributes->get("currentSchool");
-        $this->addGradesService->updateGradeScale($request->grades, $currentSchool, $authAdmin);
-        return ApiResponseService::success("Grades Updated Successfully");
-    }
-
-    public function bulkCreateExamGrades(BulkCreateGradeRequest $request)
-    {
-        $authAdmin = $this->resolveUser();
-        $currentSchool = $request->attributes->get("currentSchool");
-        $this->addGradesService->bulkCreateGradeScale($request->validated(), $currentSchool, $authAdmin);
-        return ApiResponseService::success("Grades Created Successfully", null, null, 200);
-    }
-
-    public function bulkDeleteGradesByGradeConfig(BulkDeleteGradeConfigRequest $request)
-    {
-        $authAdmin = $this->resolveUser();
-        $currentSchool = $request->attributes->get("currentSchool");
-        $this->addGradesService->bulkDeleteGradesConfig($currentSchool, $request->validated(), $authAdmin);
-        return ApiResponseService::success("Grades Deleted Successfully", null, null, 200);
-    }
-
-    public function bulkConfigureByOtherGradeConfig(BulkConfigureByOtherGradesRequest $request)
-    {
-        $authAdmin = $this->resolveUser();
-        $currentSchool = $request->attributes->get("currentSchool");
-        $this->addGradesService->bulkConfigureByOtherScales($request->validated(), $currentSchool, $authAdmin);
-        return ApiResponseService::success("Grades Configured Successfully", null, null, 200);
-    }
-    public function deleteGradeConfig(Request $request, string $configId)
-    {
-        $authAdmin = $this->resolveUser();
-        $currentSchool = $request->attributes->get("currentSchool");
-        $this->addGradesService->deleteGradesConfig($currentSchool, $configId, $authAdmin);
-        return ApiResponseService::success("School Grades Configuration Deleted Successfully", null, null, 200);
-    }
-
-    public function getGradeConfigDetails(Request $request, string $configId)
-    {
-        $currentSchool = $request->attributes->get('currentSchool');
-        $configDetails = $this->addGradesService->getGradeScaleCategoryId($currentSchool, $configId);
-        return ApiResponseService::success("Grade Configuration Details Fetched Successfully", $configDetails, null, 200);
-    }
     public function autoGenExamGrading(AutoGenExamGradingRequest $request)
     {
         $examGrading = $this->autoGenExamGradingService->autoGenerateExamGrading($request->validated());
         return ApiResponseService::success("Grading Generated Successfully", $examGrading, null, 200);
     }
-    public function createExamGrades(CreateGradeRequest $request)
-    {
-        $authAdmin = $this->resolveUser();
-        $currentSchool = $request->attributes->get("currentSchool");
-        $createGrades = $this->addGradesService->createGradeScale($request->grades, $currentSchool, $authAdmin);
-        return ApiResponseService::success("Exam Grades Created Succefully", $createGrades, null, 201);
-    }
 
-    public function createGradesByOtherGrades(Request $request)
+    public function getGradeScaleCategories(Request $request)
+    {
+
+        $currentSchool = $request->attributes->get('currentSchool');
+        $gradeScaleCategories = $this->gradeScaleService->getGradeScaleCategories($currentSchool);
+        return ApiResponseService::success("Grade Scale Categories Fetched Successfully", $gradeScaleCategories, null, 200);
+    }
+    public function getGradeScaleCategoryById(Request $request)
+    {
+        $categoryId = $request->route('categoryId');
+        $configType = $request->configType ?? 'manual';
+        $maxScore = $request->maxScore ?? 0;
+        $currentSchool = $request->attributes->get('currentSchool');
+        $gradeScaleCategory = $this->gradeScaleService->getGradeScaleCategoryById($currentSchool, $categoryId, $configType, (float) $maxScore);
+        return ApiResponseService::success("Grade Scale Category Fetched Successfully", $gradeScaleCategory, null, 200);
+    }
+    public function bulkDeleteGradeScale(BulkDeleteGradeScaleRequest $request)
+    {
+        $authAdmin = $this->resolveUser();
+        $currentSchool = $request->attributes->get('currentSchool');
+        $bulkDeleteGradeScale = $this->gradeScaleService->bulkDeleteGradeScalesByCategories($currentSchool, $request->validated(), $authAdmin);
+        return ApiResponseService::success("Grade Scales Deleted Successfully", $bulkDeleteGradeScale, null, 200);
+    }
+    public function deleteGradeScale(Request $request, string $categoryId)
+    {
+        $authAdmin = $this->resolveUser();
+        $currentSchool = $request->attributes->get('currentSchool');
+        $deleteGradeScale = $this->gradeScaleService->deleteGradeScale($currentSchool, $categoryId, $authAdmin);
+        return ApiResponseService::success("Grade Scale Deleted Successfully", $deleteGradeScale, null, 200);
+    }
+    public function bulkCopyGradeScale(BulkCopyGradeScaleRequest $request)
+    {
+        $authAdmin = $this->resolveUser();
+        $currentSchool = $request->attributes->get('currentSchool');
+        $copyGradeScale = $this->gradeScaleService->bulkCopyGradeScaleCategories($currentSchool, $request->validated(), $authAdmin);
+        return ApiResponseService::success("Grade Scale Copied Successfully", $copyGradeScale, null, 200);
+    }
+    public function updateGradeScale(UpdateGradeScaleRequest $request)
+    {
+        $authAdmin = $this->resolveUser();
+        $currentSchool = $request->attributes->get('currentSchool');
+        $updateGradeScale = $this->gradeScaleService->updateGradeScale($currentSchool, $request->validated(), $authAdmin);
+        return ApiResponseService::success("Grade Scale Updated Successfully", $updateGradeScale, null, 200);
+    }
+    public function activateGradeScale(Request $request, string $categoryId)
+    {
+        $currentSchool = $request->attributes->get('currentSchool');
+        $activateGradeScale = $this->gradeScaleService->activateGradeScale($currentSchool, $categoryId);
+        return ApiResponseService::success("Grade Scale Deactivated Successfully", $activateGradeScale, null, 200);
+    }
+    public function deactivateGradeScale(Request $request, string $categoryId)
+    {
+        $currentSchool = $request->attributes->get('currentSchool');
+        $deactivateGradeScale = $this->gradeScaleService->deactivateGradeScale($currentSchool, $categoryId);
+        return ApiResponseService::success("Grade Scale Deactivated Successfully", $deactivateGradeScale, null, 200);
+    }
+    public function getActiveGradeScaleCategory(Request $request)
+    {
+        $currentSchool = $request->attributes->get('currentSchool');
+        $activeGradeScales = $this->gradeScaleService->getActiveGradeScaleCategories($currentSchool);
+        return ApiResponseService::success("Active Grade Scale Categories Fetched Successfully", $activeGradeScales, null, 200);
+    }
+    public function getGradeScaleDetails(Request $request, string $categoryId)
+    {
+        $currentSchool = $request->attributes->get('currentSchool');
+        $gradeScaleDetails = $this->gradeScaleService->getGradeScaleDetails($currentSchool, $categoryId);
+        return ApiResponseService::success("School Grade Scale Details Fetched Successfully", $gradeScaleDetails, null, 200);
+    }
+    public function createGradeScale(CreateGradeScaleRequest $request)
+    {
+        $authAdmin = $this->resolveUser();
+        $currentSchool = $request->attributes->get('currentSchool');
+        $createGradeScales = $this->gradeScaleService->createGradeScale($request->validated(), $currentSchool, $authAdmin);
+        return ApiResponseService::success("Exam Grade Scale Created Successfully", $createGradeScales, null, 201);
+    }
+    public function copyGradeScaleCategory(Request $request)
     {
         $authAdmin = $this->resolveUser();
         $currentSchool = $request->attributes->get("currentSchool");
-        $configId = $request->route('configId');
-        $targetConfigId = $request->route('targetConfigId');
-        $createGrades = $this->addGradesService->configureByOtherScale($configId, $currentSchool, $targetConfigId, $authAdmin);
+        $sourceCategoryId = $request->route('sourceCategoryId');
+        $targetCategoryId = $request->route('targetCategoryId');
+        $createGrades = $this->gradeScaleService->copyGradeScaleCategory($currentSchool,  $sourceCategoryId,  $targetCategoryId, $authAdmin);
         return ApiResponseService::success("Exam Grades Added Successfully", $createGrades, null, 201);
     }
-
     public function importGradeScale(ImportGradeScaleRequest $request)
     {
 

@@ -22,19 +22,21 @@ return new class extends Migration
         Schema::create('letter_grades', function (Blueprint $table) {
             $table->string('id')->primary();
             $table->string('letter_grade')->unique();
+             $table->enum('status', ['active', 'inactive'])->default('active');
             $table->timestamps();
         });
 
         Schema::create('school_grade_scale_categories', function (Blueprint $table) {
             $table->string('id')->primary();
             $table->decimal('max_score', 5, 2)->nullable();
+             $table->enum('status', ['active', 'inactive'])->default('active');
             $table->timestamps();
         });
 
         Schema::create('grade_scale_categories', function (Blueprint $table) {
             $table->string('id')->primary();
             $table->string('title');
-            $table->enum('status', ['active', 'inactive']);
+            $table->enum('status', ['active', 'inactive'])->default('active');
             $table->enum('exam_type', ['exam', 'resit', 'ca']);
             $table->timestamps();
         });

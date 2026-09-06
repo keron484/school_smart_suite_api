@@ -6,10 +6,10 @@ use App\Models\LetterGrade;
 
 class AutoGenExamGradeScaleService
 {
-    public function autoGenerateExamGrading($data)
+    public function autoGenerateExamGrading(array $payload)
     {
-        $maxScore = $data['max_score'];
-        $examType = $data['exam_type'];
+        $maxScore = $payload['max_score'];
+        $examType = $payload['exam_type'];
         $letterGrades = LetterGrade::all();
         $passRemarks = [
             "Excellent",
