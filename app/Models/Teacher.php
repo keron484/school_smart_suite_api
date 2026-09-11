@@ -3,7 +3,7 @@
 namespace App\Models;
 
 use App\Models\Course\JointCourseSlot;
-use App\Models\ExamTimetable\Invigilator;
+use App\Models\ExamTimetable\ExamInvigilator;
 use App\Models\Job\SystemJob;
 use App\Models\SemesterTimetable\SemesterTimetableSlot;
 use App\Models\OTP;
@@ -59,7 +59,7 @@ class Teacher extends Model
 
     public function examInvigilator()
     {
-        return $this->morphMany(Invigilator::class, 'invigilatable');
+        return $this->morphMany(ExamInvigilator::class, 'invigilatable');
     }
     public function systemJob(): MorphMany
     {

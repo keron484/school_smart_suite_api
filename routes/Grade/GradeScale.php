@@ -40,5 +40,11 @@ Route::get('category/details/{categoryId}', [SchoolGradeScaleController::class, 
 Route::post('/create', [SchoolGradeScaleController::class, 'createGradeScale'])
     ->name('grade-scale.create');
 
+Route::post('category/bulk-activate', [SchoolGradeScaleController::class, 'bulkActivateGradeScale'])
+   ->name('grade-scale-category.update');
+
+Route::post('category/bulk-deactivate', [SchoolGradeScaleController::class, 'bulkDeactivateGradeScale'])
+   ->name('grade-scale-category.update');
+
 Route::post('/copy/source-category/{sourceCategoryId}/target-category/{targetCategoryId}', [SchoolGradeScaleController::class, 'copyGradeScaleCategory'])
     ->name('grade-scale.copy');

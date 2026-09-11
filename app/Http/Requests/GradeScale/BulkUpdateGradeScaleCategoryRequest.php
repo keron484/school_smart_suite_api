@@ -4,7 +4,7 @@ namespace App\Http\Requests\GradeScale;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class BulkCopyGradeScaleRequest extends FormRequest
+class BulkUpdateGradeScaleCategoryRequest extends FormRequest
 {
 
     /**
@@ -15,9 +15,8 @@ class BulkCopyGradeScaleRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'source_category_id' => 'required|string|exists:school_grade_scale_categories,id',
-            'target_category_ids' => 'required|array',
-            'target_category_ids.*' => 'required|string|exists:school_grade_scale_categories,id'
+            'grade_scale_category_ids' => 'required|array|min:1',
+            'grade_scale_category_ids.*category_id' => 'required|integer|exists:grade_scale_categories,id',
         ];
     }
 }

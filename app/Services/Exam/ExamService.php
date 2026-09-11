@@ -2,16 +2,17 @@
 
 namespace App\Services\Exam;
 
-use App\Jobs\DataCreationJob\CreateExamCandidateJob;
-use App\Jobs\NotificationJobs\SendAdminExamCreatedNotificationJob;
-use App\Models\Exams;
+use App\Jobs\Exam\CreateExamCandidateJob;
+use App\Models\Exam\Exam;
+use App\Models\GradeScale\Grade;
 use Illuminate\Support\Str;
-use App\Models\LetterGrade;
 use App\Models\SchoolGradesConfig;
+use App\Models\GradeScale\SchoolGradeScaleCategory;
 use App\Models\AccessedStudent;
 use App\Models\Examtype;
 use App\Models\Semester;
 use App\Models\Student;
+use App\Models\AcademicYear\SchoolAcademicYear;
 use Carbon\Carbon;
 use Exception;
 use App\Exceptions\AppException;
@@ -21,156 +22,94 @@ use Illuminate\Database\Eloquent\ModelNotFoundException;
 use App\Models\Grades;
 use App\Events\Actions\AdminActionEvent;
 use App\Events\Actions\StudentActionEvent;
-use App\Events\Analytics\AcademicAnalyticsEvent;
-use App\Constant\Analytics\Academic\AcademicAnalyticsEvent as AcademicEvent;
-use App\Models\SchoolSemester;
 
 class ExamService
 {
-    public function createExam(array $data, object $currentSchool, array $authAdmin)
+    public function createExam(array $data, object $currentSchool, object $authAdmin): Exam
     {
         try {
-            $schoolSemester = SchoolSemester::where("school_branch_id", $currentSchool->id)
-                ->where("id", $data['school_semester_id'])
-                ->with(['specialty.level', 'schoolYear.systemAcademicYear'])
-                ->first();
-
-            if (!$schoolSemester) {
-                throw new AppException(
-                    "School Semester Not Found",
-                    404,
-                    "School Semester Not Found",
-                    "The specified school semester could not be found. Please Ensure that is has not been deleted and try again.",
-                );
-            }
             $examType = Examtype::find($data['exam_type_id']);
             if (!$examType) {
                 throw new AppException(
                     "Exam Type Not Found",
                     404,
                     "Exam Type Not Found",
-                    "Exam Type Not Found Please ensure that this exam type exist and its not accidentally deleted",
-                    null
+                    "Exam Type Not Found. Please ensure that this exam type exists and is not accidentally deleted."
                 );
             }
 
-            $existingExam = Exams::where("school_branch_id", $currentSchool->id)
+            $existingExam = Exam::where("school_branch_id", $currentSchool->id)
                 ->where("exam_type_id", $data['exam_type_id'])
-                ->where("specialty_id", $schoolSemester->specialty->id)
-                ->where("level_id", $schoolSemester->specialty->level_id)
-                ->where("student_batch_id", $schoolSemester->student_batch_id)
-                ->where("school_year_id", $schoolSemester->school_year_id)
+                ->where("school_year_id", $data['school_year_id'])
                 ->first();
+
             if ($existingExam) {
                 throw new AppException(
                     "Duplicate Exam Details",
                     409,
                     "Duplicate Exam Credentials",
-                    "Your Trying to create and exam that already exist, please check exam details and try again"
+                    "You are trying to create an exam that already exists. Please check exam details and try again."
                 );
             }
-            $examId = Str::uuid();
-            $exam = new Exams();
-            $exam->id = $examId;
+
+            $calculatedMaxScore = $data["max_score"];
+
+            if (strtolower($examType->type) !== 'ca') {
+                $caExam = Exam::where("school_branch_id", $currentSchool->id)
+                    ->where("school_year_id", $data['school_year_id'])
+                    ->whereHas('examType', function ($query) use ($examType) {
+                        $query->where('semester', $examType->semester)
+                            ->where('type', 'ca');
+                    })
+                    ->first();
+
+                if (!$caExam) {
+                    throw new AppException(
+                        "Missing CA Exam Prerequisite",
+                        422,
+                        "Continuous Assessment Required",
+                        "You must create a Continuous Assessment (CA) exam for semester '{$examType->semester}' before creating this exam."
+                    );
+                }
+
+                $calculatedMaxScore += $caExam->max_score;
+            }
+
+            $exam = new Exam();
             $exam->school_branch_id = $currentSchool->id;
             $exam->start_date = $data["start_date"];
             $exam->end_date = $data["end_date"];
-            $exam->level_id = $schoolSemester->specialty->level_id;
+            $exam->max_score = $calculatedMaxScore;
             $exam->exam_type_id = $examType->id;
-            $exam->weighted_mark = $data["weighted_mark"];
-            $exam->semester_id = $examType->semester_id;
-            $exam->school_year_id = $schoolSemester->school_year_id;
-            $exam->specialty_id = $schoolSemester->specialty->id;
-            $exam->student_batch_id = $schoolSemester->student_batch_id;
-            $exam->result_released = false;
+            $exam->school_year_id = $data["school_year_id"];
             $exam->save();
-            $examData =  [
-                'specialty' => $schoolSemester->specialty->specialty_name,
-                'level' => $schoolSemester->specialty->level->name,
-                'startDate' => Carbon::parse($data['start_date'])->format('l, F j, Y'),
-                'endDate' => Carbon::parse($data['end_date'])->format('l, F j, Y'),
-                'school_year' => $schoolSemester->schoolYear->systemAcademicYear->name,
-                'semester' => Semester::find($examType->semester_id)->name,
-                'examName' => $examType->exam_name
-            ];
+
             CreateExamCandidateJob::dispatch(
-                $schoolSemester->specialty->id,
-                $schoolSemester->specialty->level->id,
-                $schoolSemester->student_batch_id,
-                $examId
+                $exam->id,
+                $currentSchool->id
             );
-            SendAdminExamCreatedNotificationJob::dispatch(
-                $currentSchool->id,
-                $examData
-            );
-            AdminActionEvent::dispatch(
-                [
-                    "permissions" =>  ["schoolAdmin.exam.create"],
-                    "roles" => ["schoolSuperAdmin", "schoolAdmin"],
-                    "schoolBranch" =>  $currentSchool->id,
-                    "feature" => "examManagement",
-                    "action" => "exam.created",
-                    "authAdmin" => $authAdmin,
-                    "data" => $exam,
-                    "message" => "Exam Created",
-                ]
-            );
-            StudentActionEvent::dispatch([
-                'schoolBranch' => $currentSchool->id,
-                'specialtyIds'   => [$schoolSemester->specialty->id],
-                'feature'      => 'examCreate',
-                'message'      => 'Exam Created',
-                'data'         => $exam,
-            ]);
-            event(new AcademicAnalyticsEvent(
-                eventType: AcademicEvent::EXAM_CREATED,
-                version: 1,
-                payload: [
-                    "school_branch_id" => $currentSchool->id,
-                    "specialty_id" => $schoolSemester->specialty->id,
-                    "department_id" => $schoolSemester->specialty->department_id,
-                    "level_id" => $schoolSemester->specialty->level_id,
-                    "value" => 1
-                ]
-            ));
+
             return $exam;
-        } catch (Exception $e) {
+        } catch (AppException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
             throw new AppException(
                 $e->getMessage(),
                 500,
                 "Server Error",
-                "An error occurred while creating the exam. Please try again later.",
-                null
+                "An unexpected error occurred while creating the exam. Please try again later."
             );
         }
     }
-    public function deleteExam(string $examId, Object $currentSchool, array $authAdmin)
+    public function deleteExam(string $examId, Object $currentSchool, object $authAdmin)
     {
         try {
 
-            $exam = Exams::where("school_branch_id", $currentSchool->id)
+            $exam = Exam::where("school_branch_id", $currentSchool->id)
                 ->findorFail($examId);
             $this->deleteExamCandidate($examId, $currentSchool);
 
             $exam->delete();
-            AdminActionEvent::dispatch(
-                [
-                    "permissions" =>  ["schoolAdmin.exam.delete"],
-                    "roles" => ["schoolSuperAdmin", "schoolAdmin"],
-                    "schoolBranch" =>  $currentSchool->id,
-                    "feature" => "examManagement",
-                    "authAdmin" => $authAdmin,
-                    "data" => $exam,
-                    "message" => "Exam Deleted",
-                ]
-            );
-            StudentActionEvent::dispatch([
-                'schoolBranch' => $currentSchool->id,
-                'specialtyIds'   => [$exam->specialty_id],
-                'feature'      => 'examDelete',
-                'message'      => 'Exam  Deleted',
-                'data'         => $exam,
-            ]);
             return $exam;
         } catch (ModelNotFoundException $e) {
             throw new AppException(
@@ -196,7 +135,7 @@ class ExamService
             ->where("exam_id", $examId)
             ->delete();
     }
-    public function bulkDeleteExam(array $examIds, object $currentSchool, array $authAdmin): array
+    public function bulkDeleteExam(array $examIds, object $currentSchool, object $authAdmin): array
     {
         $deletedExams = [];
 
@@ -205,7 +144,7 @@ class ExamService
             $specialtyIds = [];
             foreach ($examIds as $examIdItem) {
                 $examId = $examIdItem['exam_id'] ?? null;
-                $exam = Exams::where("school_branch_id", $currentSchool->id)
+                $exam = Exam::where("school_branch_id", $currentSchool->id)
                     ->findOrFail($examId);
                 $specialtyIds[] = $exam->specialty_id;
                 $this->deleteExamCandidate($examId, $currentSchool);
@@ -256,7 +195,7 @@ class ExamService
     public function updateExam(string $examId, object $currentSchool, array $data, array  $authAdmin)
     {
         try {
-            $exam = Exams::where("school_branch_id", $currentSchool->id)
+            $exam = Exam::where("school_branch_id", $currentSchool->id)
                 ->find($examId);
 
             if (!$exam) {
@@ -303,14 +242,14 @@ class ExamService
             );
         }
     }
-    public function bulkUpdateExam(array $examUpdateList, object $currentSchool, array $authAdmin)
+    public function bulkUpdateExam(array $examUpdateList, object $currentSchool, object $authAdmin)
     {
         $result = [];
         $specialtyIds = [];
         try {
             DB::beginTransaction();
             foreach ($examUpdateList as $examUpdate) {
-                $exam = Exams::where("school_branch_id", $currentSchool->id)
+                $exam = Exam::where("school_branch_id", $currentSchool->id)
                     ->findOrFail($examUpdate['exam_id']);
                 $filterData = array_filter($examUpdate);
                 $exam->update($filterData);
@@ -346,8 +285,13 @@ class ExamService
     }
     public function getExams(object $currentSchool)
     {
-        $exams = Exams::where('school_branch_id', $currentSchool->id)
-            ->with(['examtype', 'semester', 'specialty', 'level', 'studentBatch'])
+        $exams = Exam::where('school_branch_id', $currentSchool->id)
+            ->with([
+                'examType.semesters',
+                'schoolYear.specialty.level',
+                'examGradeScale',
+                'schoolYear.systemAcademicYear'
+            ])
             ->get();
 
         if ($exams->isEmpty()) {
@@ -362,29 +306,55 @@ class ExamService
 
         return $exams;
     }
-    public function examDetails(object $currentSchool, string $examId)
+    public function examDetails(object $currentSchool, string $examId): Exam
     {
-        $exam = Exams::where("school_branch_id", $currentSchool->id)
-            ->with(['examtype', 'semester', 'specialty', 'level', 'studentBatch'])
-            ->find($examId);
+        try {
+            $exam = Exam::where("school_branch_id", $currentSchool->id)
+                ->with(['examType.semesters', 'schoolYear.specialty.level', 'schoolYear.systemAcademicYear', 'examGradeScale'])
+                ->find($examId);
 
-        if (!$exam) {
+            if (!$exam) {
+                throw new AppException(
+                    "The exam you are looking for was not found.",
+                    404,
+                    "Exam Not Found",
+                    "We could not find an exam with the provided ID for this school. Please verify the ID and try again.",
+                    null
+                );
+            }
+
+            $now = Carbon::now();
+            $startDate = Carbon::parse($exam->start_date)->startOfDay();
+            $endDate = Carbon::parse($exam->end_date)->endOfDay();
+
+            if ($now->lt($startDate)) {
+                $status = 'upcoming';
+            } elseif ($now->between($startDate, $endDate)) {
+                $status = 'active';
+            } else {
+                $status = 'finished';
+            }
+
+            $exam->status = $status;
+
+            return $exam;
+        } catch (AppException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
             throw new AppException(
-                "The exam you are looking for was not found.",
-                404,
-                "Exam Not Found",
-                "We could not find an exam with the provided ID for this school. Please verify the ID and try again.",
+                $e->getMessage(),
+                500,
+                "Server Error",
+                "An unexpected error occurred while fetching the exam details. Please try again later.",
                 null
             );
         }
-
-        return $exam;
     }
     public function getAssociateWeightedMarkLetterGrades(string $examId, object $currentSchool)
     {
         $results = [];
 
-        $exam = Exams::where("school_branch_id", $currentSchool->id)
+        $exam = Exam::where("school_branch_id", $currentSchool->id)
             ->with(["examtype"])
             ->find($examId);
 
@@ -398,7 +368,7 @@ class ExamService
             );
         }
 
-        $letterGrades = LetterGrade::all();
+        $letterGrades = Grade::all();
 
         if ($letterGrades->isEmpty()) {
             throw new AppException(
@@ -419,70 +389,84 @@ class ExamService
 
         return $results;
     }
-    public function addExamGrading(string $examId, object $currentSchool, string $gradesConfigId, array $authAdmin)
+    public function addExamGradeScale(string $examId, object $currentSchool, string $gradeScaleCategoryId, object $authAdmin): Exam
     {
+        try {
+            $gradeScaleCategory = SchoolGradeScaleCategory::where("school_branch_id", $currentSchool->id)
+                ->with(['schoolGradeScale', 'systemGradeCategory'])
+                ->find($gradeScaleCategoryId);
 
-        $gradesConfig = SchoolGradesConfig::where("school_branch_id", $currentSchool->id)
-            ->find($gradesConfigId);
+            if (!$gradeScaleCategory) {
+                throw new AppException(
+                    "The selected grading configuration was not found.",
+                    404,
+                    "Grading Configuration Not Found",
+                    "We could not find the specified grading configuration for this school. Please verify the ID and try again.",
+                    null
+                );
+            }
 
-        if (!$gradesConfig) {
+            if ($gradeScaleCategory->schoolGradeScale->isEmpty()) {
+                throw new AppException(
+                    "The selected grading configuration has not been set up completely.",
+                    400,
+                    "Incomplete Configuration",
+                    "You cannot apply an incomplete grading configuration to an exam. Please complete the setup and try again.",
+                    null
+                );
+            }
+
+            $exam = Exam::where("school_branch_id", $currentSchool->id)
+                ->with(['examType'])
+                ->find($examId);
+
+            if (!$exam) {
+                throw new AppException(
+                    "The exam you are trying to grade was not found.",
+                    404,
+                    "Exam Not Found",
+                    "We could not find the exam with the provided ID for this school. Please verify the ID and try again.",
+                    null
+                );
+            }
+
+            if (strtolower($exam->examType->type) !== strtolower($gradeScaleCategory->systemGradeCategory->exam_type)) {
+                throw new AppException(
+                    "Mismatched Exam Type and Grading Category",
+                    422,
+                    "Incompatible Grading Category",
+                    "The selected grading configuration type does not match the type of this exam ({$exam->examType->type}).",
+                    null
+                );
+            }
+
+            if ((float) $exam->max_score !== (float) $gradeScaleCategory->max_score) {
+                throw new AppException(
+                    "Mismatched Maximum Score",
+                    422,
+                    "Score Limit Mismatch",
+                    "The maximum score of the exam ({$exam->max_score}) does not match the maximum score configured for this grading scale ({$gradeScaleCategory->max_score}).",
+                    null
+                );
+            }
+
+            $exam->grades_category_id = $gradeScaleCategory->id;
+            $exam->save();
+
+            return $exam;
+        } catch (AppException $e) {
+            throw $e;
+        } catch (\Throwable $e) {
             throw new AppException(
-                "The selected grading configuration was not found.",
-                404,
-                "Grading Configuration Not Found",
-                "We could not find the specified grading configuration for this school. Please verify the ID and try again.",
+                $e->getMessage(),
+                500,
+                "Server Error",
+                "An unexpected error occurred while attaching the grading configuration to the exam. Please try again later.",
                 null
             );
         }
-
-        if ($gradesConfig->isgrades_configured == false) {
-            throw new AppException(
-                "The selected grading configuration has not been set up completely.",
-                400,
-                "Incomplete Configuration",
-                "You cannot apply an incomplete grading configuration to an exam. Please complete the setup and try again.",
-                null
-            );
-        }
-
-        $exam = Exams::where("school_branch_id", $currentSchool->id)
-            ->find($examId);
-
-        if (!$exam) {
-            throw new AppException(
-                "The exam you are trying to grade was not found.",
-                404,
-                "Exam Not Found",
-                "We could not find the exam with the provided ID for this school. Please verify the ID and try again.",
-                null
-            );
-        }
-
-        $exam->grades_category_id = $gradesConfig->grades_category_id;
-        $exam->grading_added = true;
-        $exam->save();
-        AdminActionEvent::dispatch(
-            [
-                "permissions" =>  ["schoolAdmin.exam.add.grade.config"],
-                "roles" => ["schoolSuperAdmin", "schoolAdmin"],
-                "schoolBranch" =>  $currentSchool->id,
-                "feature" => "examManagement",
-                "action" => "examGradeScale.added",
-                "authAdmin" => $authAdmin,
-                "data" => $exam,
-                "message" => "Exam Grade Scale Added",
-            ]
-        );
-        StudentActionEvent::dispatch([
-            'schoolBranch' => $currentSchool->id,
-            'specialtyIds'   => [$exam->specialty_id],
-            'feature'      => 'examGradeScale',
-            'message'      => 'Exam Grade Scale Added',
-            'data'         => $exam,
-        ]);
-        return $exam;
     }
-    public function bulkAddExamGrading(array $examGradingList, object $currentSchool, array $authAdmin)
+    public function bulkAddExamGrading(array $examGradingList, object $currentSchool, object $authAdmin)
     {
         $result = [];
         try {
@@ -515,7 +499,7 @@ class ExamService
                     );
                 }
 
-                $exam = Exams::where("school_branch_id", $currentSchool->id)->find($examId);
+                $exam = Exam::where("school_branch_id", $currentSchool->id)->find($examId);
 
                 if (!$exam) {
                     throw new AppException(
@@ -581,7 +565,7 @@ class ExamService
 
         $relationshipsToLoad = ['semester', 'examtype', 'specialty', 'level'];
 
-        $exams = Exams::where($examQueryConstraints)
+        $exams = Exam::where($examQueryConstraints)
             ->with($relationshipsToLoad)
             ->get();
 
@@ -632,7 +616,7 @@ class ExamService
     }
     public function getExamGradeScale(string $examId,  object $currentSchool)
     {
-        $exam = Exams::where('school_branch_id', $currentSchool->id)
+        $exam = Exam::where('school_branch_id', $currentSchool->id)
             ->with([
                 'examtype',
                 'semester',
@@ -691,7 +675,7 @@ class ExamService
         $now = Carbon::now();
 
 
-        $regularExams = Exams::where('school_branch_id', $currentSchool->id)
+        $regularExams = Exam::where('school_branch_id', $currentSchool->id)
             ->where('specialty_id', $student->specialty_id)
             ->where('level_id', $student->level_id)
             ->where('end_date', '>=', $now)
@@ -749,7 +733,7 @@ class ExamService
 
         $relationshipsToLoad = ['semester', 'examtype', 'specialty', 'level'];
 
-        $exams = Exams::where($examQueryConstraints)
+        $exams = Exam::where($examQueryConstraints)
             ->with($relationshipsToLoad)
             ->get();
 
@@ -803,5 +787,51 @@ class ExamService
         })->values()->all();
 
         return $result;
+    }
+    public function getRelatedCaExam(object $currentSchool, string $examTypeId, string $schoolYearId): ?Exam
+    {
+        $schoolYear = SchoolAcademicYear::where('school_branch_id', $currentSchool->id)
+            ->with('specialty')
+            ->find($schoolYearId);
+
+        if (!$schoolYear) {
+            throw new AppException(
+                'Academic Year Not Found',
+                404,
+                'Academic Year Not Found',
+                'The requested school academic year could not be found for this branch. Please verify the selected year.'
+            );
+        }
+
+        $examType = Examtype::find($examTypeId);
+
+        if (!$examType) {
+            throw new AppException(
+                'Exam Type Not Found',
+                404,
+                'Exam Type Not Found',
+                'The specified exam type does not exist. Please check your selection and try again.'
+            );
+        }
+
+        $caExam = Exam::where('school_branch_id', $currentSchool->id)
+            ->where('school_year_id', $schoolYear->id)
+            ->whereHas('examType', function ($query) use ($examType) {
+                $query->where('semester', $examType->semester)
+                    ->where('type', 'ca');
+            })
+            ->with('examType')
+            ->first();
+
+        if (!$caExam) {
+            throw new AppException(
+                'CA Exam Not Found',
+                404,
+                'CA Exam Not Found',
+                'No Continuous Assessment (CA) exam was found for the specified semester and academic year.'
+            );
+        }
+
+        return $caExam;
     }
 }

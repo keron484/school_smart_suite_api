@@ -8,8 +8,6 @@ use App\Http\Controllers\Exam\ExamGradeController;
 Route::post('/exam-grades', [SchoolGradeScaleController::class, 'createExamGrades'])
     ->name('exam-grades.store');
 
-Route::post('/auto-gen-grading', [SchoolGradeScaleController::class, 'autoGenExamGrading'])->name('exam-grading.auto.generate');
-
 Route::get('/exam-grades', [SchoolGradeScaleController::class, 'getAllGrades'])
     ->name('exam-grades.index');
 

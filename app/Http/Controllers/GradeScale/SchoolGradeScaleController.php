@@ -6,12 +6,11 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\GradeScale\BulkDeleteGradeScaleRequest;
 use App\Jobs\GradeScale\GradeScaleImportJob;
 use Illuminate\Http\Request;
-use App\Http\Requests\Grade\AutoGenExamGradingRequest;
 use App\Services\Grade\GradeScaleService;
 use App\Services\ApiResponseService;
-use App\Services\Grade\AutoGenExamGradeScaleService;
 use App\Http\Requests\GradeScale\ImportGradeScaleRequest;
 use App\Http\Requests\GradeScale\BulkCopyGradeScaleRequest;
+use App\Http\Requests\GradeScale\BulkUpdateGradeScaleCategoryRequest;
 use App\Http\Requests\GradeScale\CreateGradeScaleRequest;
 use App\Http\Requests\GradeScale\UpdateGradeScaleRequest;
 use App\Models\GradeScale\SchoolGradeScale;
@@ -23,21 +22,28 @@ use App\Models\Job\SystemJobDetail;
 class SchoolGradeScaleController extends Controller
 {
     protected GradeScaleService  $gradeScaleService;
-    protected AutoGenExamGradeScaleService $autoGenExamGradingService;
     public function __construct(
         GradeScaleService $gradeScaleService,
-        AutoGenExamGradeScaleService $autoGenExamGradingService
     ) {
         $this->gradeScaleService = $gradeScaleService;
-        $this->autoGenExamGradingService = $autoGenExamGradingService;
     }
 
-    public function autoGenExamGrading(AutoGenExamGradingRequest $request)
+
+    public function bulkActivateGradeScale(BulkUpdateGradeScaleCategoryRequest $request)
     {
-        $examGrading = $this->autoGenExamGradingService->autoGenerateExamGrading($request->validated());
-        return ApiResponseService::success("Grading Generated Successfully", $examGrading, null, 200);
-    }
 
+        $authAdmin = $this->resolveUser();
+        $currentSchool = $request->attributes->get('currentSchool');
+        $bulkActivateGradeScale = $this->gradeScaleService->bulkActivateGradeScaleCategories($currentSchool, $request->validated(), $authAdmin);
+        return ApiResponseService::success("Grade Scales Activated Successfully", $bulkActivateGradeScale, null, 200);
+    }
+    public function bulkDeactivateGradeScale(BulkUpdateGradeScaleCategoryRequest $request)
+    {
+        $authAdmin = $this->resolveUser();
+        $currentSchool = $request->attributes->get('currentSchool');
+        $bulkDeactivateGradeScale = $this->gradeScaleService->bulkDeactivateGradeScaleCategories($currentSchool, $request->validated(), $authAdmin);
+        return ApiResponseService::success("Grade Scales Deactivated Successfully", $bulkDeactivateGradeScale, null, 200);
+    }
     public function getGradeScaleCategories(Request $request)
     {
 

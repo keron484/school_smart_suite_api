@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Models\Badge\UserBadge;
 use App\Traits\Currency;
+use App\Models\Exam\ExamCandidate;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Spatie\Permission\Traits\HasRoles;
 use Illuminate\Database\Eloquent\Model;
@@ -252,5 +253,10 @@ class Student extends Model
     public function studentParentRelationship()
     {
         return $this->belongsTo(StudentParentRelationship::class, 'relationship_id');
+    }
+
+    public function examCandidate(): HasMany
+    {
+        return $this->hasMany(ExamCandidate::class, 'student_id');
     }
 }

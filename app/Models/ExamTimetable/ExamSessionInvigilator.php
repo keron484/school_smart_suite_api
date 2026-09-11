@@ -24,7 +24,7 @@ class ExamSessionInvigilator extends Model
     }
     public function invigilator(): BelongsTo
     {
-        return $this->belongsTo(Invigilator::class, 'invigilator_id');
+        return $this->belongsTo(ExamInvigilator::class, 'invigilator_id');
     }
 
 }

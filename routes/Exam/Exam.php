@@ -12,6 +12,9 @@ Route::get('/', [ExamController::class, 'getExams'])
 Route::get('/{examId}', [ExamController::class, 'getExamDetails'])
     ->name('exams.show');
 
+Route::get('/related-ca/school-year/{schoolYearId}/exam-type/{examTypeId}', [ExamController::class, 'getRelatedCaExam'])
+    ->name('get.relatedExams');
+
 Route::put('/{examId}', [ExamController::class, 'updateExam'])
     ->name('exams.update');
 
@@ -24,7 +27,7 @@ Route::get('/{examId}/letter-grades', [ExamController::class, 'associateWeighted
 Route::get('/students/{studentId}/accessed-exams', [ExamController::class, 'getAccessedExams'])
     ->name('students.accessed-exams.index');
 
-Route::post('/{examId}/grading-configs/{gradesConfigId}', [ExamController::class, 'addExamGrading'])
+Route::post('/{examId}/grade-scale/{gradeScaleCategoryId}', [ExamController::class, 'addExamGradeScale'])
     ->name('exams.grading-configs.store');
 
 Route::post('/bulk-delete', [ExamController::class, 'bulkDeleteExam'])

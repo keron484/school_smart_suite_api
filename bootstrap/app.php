@@ -305,8 +305,6 @@ return Application::configure(basePath: dirname(__DIR__))
             Route::middleware(['auth:sanctum', IdentifyTenant::class])->prefix('api/v1/invigilator')
                 ->group(base_path('routes/Invigilator/Invigilator.php'));
 
-            Route::middleware(['auth:sanctum', IdentifyTenant::class])->prefix('api/v1/exam-invigilator')
-                ->group(base_path('routes/Invigilator/ExamInvigilator.php'));
 
             Route::middleware(['auth:sanctum', IdentifyTenant::class])->prefix('api/v1/period-duration-type')
                 ->group(base_path('routes/PeriodDuration/PeriodDurationType.php'));

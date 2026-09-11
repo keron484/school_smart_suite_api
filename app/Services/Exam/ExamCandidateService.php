@@ -2,24 +2,29 @@
 
 namespace App\Services\Exam;
 
-use App\Models\AccessedStudent;
 use App\Exceptions\AppException;
 use App\Models\Exams;
+use App\Models\Exam\ExamCandidate;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
-
+use Illuminate\Support\Facades\Log;
+use Throwable;
 class ExamCandidateService
 {
-    public function getAccessedStudents($currentSchool)
+    public function getAccessedStudents(object $currentSchool)
     {
         try {
-            $accessedStudents = AccessedStudent::where("school_branch_id", $currentSchool->id)
-                ->with(['student' => function ($query) {
-                    $query->with(['level', 'specialty']);
-                }, 'exam.examtype'])
+            $getExamCandidates = ExamCandidate::where("school_branch_id", $currentSchool->id)
+                ->with([
+                    'student',
+                    'exam.schoolYear.specialty.level',
+                    'exam.examType.semesters',
+                    'exam.schoolYear.systemAcademicYear',
+                    'exam.examScore'
+                ])
                 ->get();
 
-            if ($accessedStudents->isEmpty()) {
+            if ($getExamCandidates->isEmpty()) {
                 throw new AppException(
                     "No exam candidates found for this school branch.",
                     404,
@@ -29,25 +34,38 @@ class ExamCandidateService
                 );
             }
 
-            return $accessedStudents;
+            return $getExamCandidates;
         } catch (AppException $e) {
             throw $e;
-        } catch (\Exception $e) {
+        } catch (Throwable $e) {
+            // Log exact exception details (message, file, line, and stack trace)
+            Log::error("Failed to fetch accessed students: " . $e->getMessage(), [
+                'file' => $e->getFile(),
+                'line' => $e->getLine(),
+                'school_branch_id' => $currentSchool->id ?? null,
+                'trace' => $e->getTraceAsString()
+            ]);
+
+            // Option A: Append raw error to description (Ideal for local/debugging)
+            $debugDescription = config('app.debug')
+                ? "Error: {$e->getMessage()} in {$e->getFile()} on line {$e->getLine()}"
+                : "We encountered an unexpected issue while retrieving the list of exam candidates.";
+
             throw new AppException(
                 "An unexpected error occurred while fetching exam candidates. Please try again later.",
                 500,
                 "Server Error",
-                "We encountered an unexpected issue while retrieving the list of exam candidates.",
+                $debugDescription,
                 null
             );
         }
     }
 
-    public function deleteAccessedStudent($accessedStudentId)
+    public function deleteAccessedStudent(string $candidateId, object $currentSchool)
     {
         try {
             DB::beginTransaction();
-            $deleteAccessedStudent = AccessedStudent::findOrFail($accessedStudentId);
+            $deleteAccessedStudent = ExamCandidate::where("school_branch_id", $currentSchool->id)->findOrFail($candidateId);
             $exam = Exams::findOrFail($deleteAccessedStudent->exam_id);
 
             $deleteAccessedStudent->delete();

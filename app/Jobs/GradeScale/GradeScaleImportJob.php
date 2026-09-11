@@ -8,6 +8,9 @@ use App\Models\Job\SystemJobError;
 use App\Models\Schoolbranches;
 use App\Models\Schooladmin;
 use App\Models\Department;
+use App\Models\GradeScale\Grade;
+use App\Models\GradeScale\SchoolGradeScale;
+use App\Models\GradeScale\SchoolGradeScaleCategory;
 use App\Services\Helpers\Job\JobHelperService;
 use App\Services\Helpers\Job\JobProgressReporterService;
 use App\Services\Helpers\Import\SpreadSheetReadException;
@@ -249,6 +252,8 @@ class GradeScaleImportJob implements ShouldQueue
             ]
         ));
     }
+
+
     private function batchTrackProgress(
         SystemJob $systemJob,
         int $processed,
@@ -288,6 +293,12 @@ class GradeScaleImportJob implements ShouldQueue
             $this->batchUpdated = 0;
             $this->batchSkipped = 0;
         }
+    }
+
+    private function normalizeRow(array $payload, string $schoolBranchId): array
+    {
+         $payload = collect($payload);
+          return [];
     }
 
     private function validateRow(array $payload, int $rowNumber): ?array
@@ -413,6 +424,4 @@ class GradeScaleImportJob implements ShouldQueue
             ));
         }
     }
-
-
 }

@@ -3,17 +3,17 @@
 namespace App\Models\AcademicYear;
 
 use App\Models\Course\SemesterJointCourse;
-use App\Models\Exams;
+use App\Models\Exam\Exam;
 use App\Models\SchoolSemester;
 use App\Models\Specialty;
-use App\Traits\GeneratesUuid;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class SchoolAcademicYear extends Model
 {
-    use GeneratesUuid;
+    use HasUuids;
     protected $fillable = [
         'specialty_id',
         'school_branch_id',
@@ -45,6 +45,6 @@ class SchoolAcademicYear extends Model
 
     public function exam(): HasMany
     {
-        return $this->hasMany(Exams::class, 'school_year_id');
+        return $this->hasMany(Exam::class, 'school_year_id');
     }
 }

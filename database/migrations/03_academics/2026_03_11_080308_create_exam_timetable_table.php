@@ -29,15 +29,10 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        Schema::create('invigilators', function (Blueprint $table) {
+        Schema::create('exam_invigilators', function (Blueprint $table) {
             $table->uuid('id')->primary();
             $table->string('actorable_id');
             $table->string('actorable_type');
-            $table->timestamps();
-        });
-
-        Schema::create('exam_invigs', function (Blueprint $table) {
-            $table->uuid('id')->primary();
             $table->timestamps();
         });
 

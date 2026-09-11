@@ -12,22 +12,14 @@ return new class extends Migration
     public function up(): void
     {
         Schema::table('exams', function (Blueprint $table) {
-            $table->string('school_branch_id')->after('id');
+            $table->string('school_branch_id')->index();
             $table->foreign('school_branch_id')->references('id')->on('school_branches');
             $table->string('exam_type_id');
             $table->foreign('exam_type_id')->references('id')->on('exam_types');
-            $table->string('school_year_id');
+            $table->string('school_year_id')->index();
             $table->foreign('school_year_id')->references('id')->on('school_academic_years')->onDelete('cascade');
-            $table->string('level_id');
-            $table->foreign('level_id')->references('id')->on('levels');
-            $table->string('semester_id');
-            $table->foreign('semester_id')->references('id')->on('semesters');
-            $table->string('specialty_id');
-            $table->foreign('specialty_id')->references('id')->on('specialties');
-            $table->string('student_batch_id');
-            $table->foreign('student_batch_id')->references('id')->on('student_batches');
             $table->string('grades_category_id')->nullable();
-            $table->foreign('grades_category_id')->references('id')->on('grade_scale_categories');
+            $table->foreign('grades_category_id')->references('id')->on('school_grade_scale_categories');
         });
 
         Schema::table('exam_types', function (Blueprint $table) {
@@ -38,14 +30,10 @@ return new class extends Migration
         Schema::table('exam_candidates', function (Blueprint $table) {
             $table->string('school_branch_id')->index();
             $table->foreign('school_branch_id')->references('id')->on('school_branches');
-            $table->string('exam_id')->nullable();
+            $table->string('exam_id')->nullable()->index();
             $table->foreign('exam_id')->references('id')->on('exams');
             $table->string('student_id')->nullable()->index();
             $table->foreign('student_id')->references('id')->on('students');
-            $table->string('specialty_id');
-            $table->foreign('specialty_id')->references('id')->on('specialties')->onDelete('cascade');
-            $table->string('level_id');
-            $table->foreign('level_id')->references('id')->on('levels');
         });
 
         Schema::table('marks', function (Blueprint $table) {

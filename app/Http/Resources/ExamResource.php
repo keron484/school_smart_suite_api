@@ -14,24 +14,34 @@ class ExamResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $now = now();
+        $startDate = $this->start_date;
+        $endDate = $this->end_date;
+
+        if ($now->lt($startDate)) {
+            $status = 'upcoming';
+        } elseif ($now->between($startDate, $endDate)) {
+            $status = 'active';
+        } else {
+            $status = 'finished';
+        }
         return [
-            'id'=> $this->id,
-            'exam_name' => $this->examtype->exam_name,
-            'exam_type' => $this->examtype->type,
-            'semester_name' => $this->semester->name ?? null,
-            "batch_title" => $this->studentBatch->name ?? null,
-            "batchId" => $this->studentBatch->id ?? null,
-            'specailty_name' => $this->specialty->specialty_name ?? null,
-            'specialty_id' => $this->specialty->id ?? null,
-            'level_name' => $this->level->name ?? null,
-            'level_id' => $this->level->id ?? null,
+            'id' => $this->id,
+            'exam_name' => $this->examType->exam_name,
+            'exam_type' => $this->examType->type,
+            'semester_name' => $this->examType->semesters->name ?? null,
+            'specialty_name' => $this->schoolYear->specialty->specialty_name ?? null,
+            'level_name' => $this->schoolYear->specialty->level->name ?? null,
+            'level_number' => $this->schoolYear->specialty->level->level ?? null,
             'start_date' => $this->start_date,
             'end_date' => $this->end_date,
-            'status' => $this->status,
+            'status' => $status,
             'timetable_published' => $this->timetable_published ? 'created' : 'not created',
-            'school_year' => $this->school_year,
-            'weighted_mark' => $this->weighted_mark,
-            'grading_added' => $this->grading_added
+            'school_year' => $this->schoolYear->systemAcademicYear->name ?? null,
+            'academic_year_start' => $this->schoolYear->start_date ?? null,
+            'academic_year_end' => $this->schoolYear->end_data ?? null,
+            'max_score' => $this->max_score,
+            'is_grade_scale_configured' => $this->grades_category_id ? true : false
         ];
     }
 }

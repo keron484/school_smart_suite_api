@@ -39,19 +39,13 @@ return new class extends Migration
             $table->foreign('school_branch_id')->references('id')->on('school_branches');
         });
 
-        Schema::table('exam_invigs', function (Blueprint $table) {
+        Schema::table('exam_invigilators', function (Blueprint $table) {
             $table->string('school_branch_id', 64)->index();
             $table->foreign('school_branch_id')->references('id')->on('school_branches');
             $table->string('exam_id');
             $table->foreign('exam_id')->references('id')->on('exams');
-            $table->string('invigilator_id');
-            $table->foreign('invigilator_id')->references('id')->on('invigilators');
         });
 
-        Schema::table('invigilators', function (Blueprint $table) {
-            $table->string('school_branch_id', 64)->index();
-            $table->foreign('school_branch_id')->references('id')->on('school_branches');
-        });
 
         Schema::table('exam_session_halls', function (Blueprint $table) {
             $table->string('exam_slot_id', 64);
@@ -68,7 +62,7 @@ return new class extends Migration
             $table->string('exam_slot_id', 64);
             $table->foreign('exam_slot_id')->references('id')->on('exam_timetable_slots');
             $table->string('invigilator_id');
-            $table->foreign('invigilator_id')->references('id')->on('exam_invigs');
+            $table->foreign('invigilator_id')->references('id')->on('exam_invigilators');
         });
     }
 

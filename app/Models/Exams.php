@@ -9,39 +9,27 @@ use App\Models\ExamTimetable\ExamTimetableVersion;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use App\Traits\GeneratesUuid;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Exams extends Model
 {
-    use HasFactory, GeneratesUuid;
+    use HasFactory, HasUuids;
 
     protected $fillable = [
         'school_branch_id',
         'exam_type_id',
         'start_date',
         'end_date',
-        'level_id',
-        'department_id',
-        'weighted_mark',
-        'semester_id',
         'school_year_id',
-        'status',
-        'timetable_published',
-        'specialty_id',
-        'expected_candidate_number',
-        'evaluated_candidate_number',
-        'student_batch_id',
         'grades_category_id',
-        'result_published'
+        'max_score'
     ];
 
     protected $casts = [
         'start_date' => 'date',
         'end_date' => 'date',
-        'weighted_mark' => 'float',
-        'expected_candidate_number' => 'integer',
-        'evaluated_candidate_number' => 'integer',
+        'max_score' => 'float',
     ];
 
     public $keyType = 'string';
@@ -76,10 +64,6 @@ class Exams extends Model
     public function studentResults(): HasMany
     {
         return $this->hasMany(StudentResults::class);
-    }
-    public function studentBatch(): BelongsTo
-    {
-        return $this->belongsTo(Studentbatch::class, 'student_batch_id');
     }
     public function accessedStudent(): HasMany
     {

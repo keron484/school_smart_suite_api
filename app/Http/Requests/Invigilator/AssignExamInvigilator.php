@@ -4,7 +4,7 @@ namespace App\Http\Requests\Invigilator;
 
 use Illuminate\Foundation\Http\FormRequest;
 
-class RemoveInvigilatorRequest extends FormRequest
+class AssignExamInvigilator extends FormRequest
 {
 
     /**
@@ -16,8 +16,9 @@ class RemoveInvigilatorRequest extends FormRequest
     {
         return [
             'exam_id' => 'required|uuid|exists:exams,id',
-            "invigilator_ids" => ["required", "array", "min:1"],
-            "invigilator_ids.*" => ["required", "uuid", "exists:exam_invigilators,id"]
+            'invigilators' => 'required|array|min:1',
+            'invigilators.*.actorable_id' => 'required|uuid',
+            'invigilators.*.actorable_type' => 'required|string|max:150'
         ];
     }
 }

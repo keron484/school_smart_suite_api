@@ -40,7 +40,7 @@ class ExamTypeSeeder extends Seeder
                         "program_name" => $data[2],
                         "semester" => $data[3],
                         "type" => $data[4],
-                        "description" =>  $data[5],
+                        "description" =>  $data[6],
                         'semester_id' => Semester::where('count', $data[5])->first()->id,
                         'created_at' => $timestamp,
                         'updated_at' => $timestamp

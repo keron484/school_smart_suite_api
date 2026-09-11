@@ -9,16 +9,16 @@ return new class extends Migration
     public function up(): void
     {
         Schema::create('exams', function (Blueprint $table) {
-            $table->string('id')->primary();
+            $table->uuid('id')->primary();
             $table->date('start_date')->nullable();
             $table->date('end_date')->nullable();
-            $table->decimal('weighted_mark', 6, 2)->nullable();
-            $table->boolean('timetable_published')->default(false);
-            $table->boolean('result_released')->default(false);
-            $table->enum('status', ['finished', 'inprogress', 'pending'])->default('pending');
-            $table->integer('expected_candidate_number')->default(0);
-            $table->integer('evaluated_candidate_number')->default(0);
-            $table->boolean('grading_added')->default(false);
+            $table->decimal('max_score', 6, 2)->nullable();
+            // $table->boolean('timetable_published')->default(false);
+            // $table->boolean('result_released')->default(false);
+            // // $table->enum('status', ['finished', 'inprogress', 'pending'])->default('pending');
+            // $table->integer('expected_candidate_number')->default(0);
+            // $table->integer('evaluated_candidate_number')->default(0);
+            // $table->boolean('grading_added')->default(false);
             $table->timestamps();
         });
 
@@ -34,8 +34,6 @@ return new class extends Migration
 
         Schema::create('exam_candidates', function (Blueprint $table) {
             $table->string('id')->primary();
-            $table->boolean('grades_submitted')->default(false);
-            $table->enum('student_accessed', ['pending', 'accessed'])->default('pending');
             $table->timestamps();
         });
 

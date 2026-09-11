@@ -22,9 +22,10 @@ class ExamCandidateController extends Controller
         return ApiResponseService::success("Accessed student fetched Sucessfully", ExamCandidateResource::collection($accessedStudents), null, 200);
     }
 
-    public function deleteAccessedStudent(Request $request, $candidateId)
+    public function deleteAccessedStudent(Request $request, string $candidateId)
     {
-        $deleteCandidate =  $this->accessedStudentService->deleteAccessedStudent($candidateId);
+        $currentSchool = $request->attributes->get('currentSchool');
+        $deleteCandidate =  $this->accessedStudentService->deleteAccessedStudent($candidateId, $currentSchool);
         ApiResponseService::success("Accessed Student Deleted Successfully", $deleteCandidate, null, 200);
     }
 }

@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use App\Traits\GeneratesUuid;
+use App\Models\Exam\Exam;
 class Marks extends Model
 {
     use HasFactory, GeneratesUuid;
@@ -43,7 +44,7 @@ class Marks extends Model
     }
 
     public function exams(): BelongsTo {
-        return $this->belongsTo(Exams::class, 'exam_id');
+        return $this->belongsTo(Exam::class, 'exam_id');
     }
 
     public function level(): BelongsTo {

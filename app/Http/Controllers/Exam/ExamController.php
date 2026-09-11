@@ -8,12 +8,9 @@ use App\Http\Requests\Exam\UpdateExamRequest;
 use App\Http\Requests\Exam\BulkUpdateExamRequest;
 use App\Http\Requests\Exam\ExamIdRequest;
 use App\Http\Requests\ExamGrading\BulkAddExamGradingRequest;
-use App\Http\Resources\AccessedExamResource;
 use App\Http\Resources\ExamResource;
 use App\Services\ApiResponseService;
 use App\Services\Exam\ExamService;
-use App\Services\ResitExam\ResitExamService;
-use Exception;
 use Illuminate\Http\Request;
 
 class ExamController extends Controller
@@ -31,14 +28,14 @@ class ExamController extends Controller
         $createExam = $this->examService->createExam($request->validated(), $currentSchool, $authAdmin);
         return ApiResponseService::success("Exam Created Succefully", $createExam, null, 201);
     }
-    public function updateExam(UpdateExamRequest $request, $examId)
+    public function updateExam(UpdateExamRequest $request, string $examId)
     {
         $currentSchool = $request->attributes->get('currentSchool');
         $authAdmin = $this->resolveUser();
         $updateExam = $this->examService->updateExam($examId, $currentSchool,  $request->validated(), $authAdmin);
         return ApiResponseService::success("Exam Updated Successfully", $updateExam, null, 200);
     }
-    public function deleteExam(Request $request, $examId)
+    public function deleteExam(Request $request, string $examId)
     {
         $currentSchool = $request->attributes->get('currentSchool');
         $authAdmin = $this->resolveUser();
@@ -70,13 +67,13 @@ class ExamController extends Controller
     //     $AccessedExams = $this->examService->getAccessExams($student_id, $currentSchool);
     //     return ApiResponseService::success("Accessed Exams Fetched Sucessfully", AccessedExamResource::collection($AccessedExams), null, 200);
     // }
-    public function addExamGrading(Request $request, string $gradesConfigId)
+    public function addExamGradeScale(Request $request, string $gradeScaleCategoryId)
     {
         $currentSchool = $request->attributes->get('currentSchool');
         $examId = $request->route("examId");
-        $gradesConfigId = $request->route("gradesConfigId");
+        $gradeScaleCategoryId = $request->route("gradeScaleCategoryId");
         $authAdmin = $this->resolveUser();
-        $addGradesConfig = $this->examService->addExamGrading($examId, $currentSchool, $gradesConfigId, $authAdmin);
+        $addGradesConfig = $this->examService->addExamGradeScale($examId, $currentSchool, $gradeScaleCategoryId, $authAdmin);
         return ApiResponseService::success("Exam Grading Added Successfully", $addGradesConfig, null, 201);
     }
     public function bulkDeleteExam(ExamIdRequest $request)
@@ -101,14 +98,12 @@ class ExamController extends Controller
         $bulkUpdateExam = $this->examService->bulkUpdateExam($request->exams, $currentSchool, $authAdmin);
         return ApiResponseService::success("Exam Updated Successfully", $bulkUpdateExam, null, 200);
     }
-
-    public function getAllExamsByStudentId(Request $request, $studentId)
+    public function getAllExamsByStudentId(Request $request, string $studentId)
     {
         $currentSchool = $request->attributes->get('currentSchool');
         $exams = $this->examService->getAllExamsByStudentId($currentSchool, $studentId);
         return ApiResponseService::success("Exams Fetched Successfully", $exams, null, 200);
     }
-
     public function getAllExamsByStudentIdSemesterId(Request $request)
     {
         $studentId = $request->route("studentId");
@@ -117,14 +112,12 @@ class ExamController extends Controller
         $exams = $this->examService->getExamsByStudentIdSemesterId($currentSchool, $studentId, $semesterId);
         return ApiResponseService::success("Exams Fetched Successfully", $exams, null, 200);
     }
-
-    public function getExamGradeScale(Request $request, $examId)
+    public function getExamGradeScale(Request $request, string $examId)
     {
         $currentSchool = $request->attributes->get('currentSchool');
         $examGradeScale = $this->examService->getExamGradeScale($examId, $currentSchool);
         return ApiResponseService::success("Exam Grade Scale Fetched Successfully", $examGradeScale, null, 200);
     }
-
     public function getStudentUpcomingExams(Request $request)
     {
         $currentSchool = $request->attributes->get('currentSchool');
@@ -132,8 +125,14 @@ class ExamController extends Controller
         $upcomingExams = $this->examService->getUpcomingExams($currentSchool, $authStudent);
         return ApiResponseService::success("Upcoming Exams Fetched Successfully", $upcomingExams, null, 200);
     }
-
-
+    public function getRelatedCaExam(Request $request)
+    {
+        $currentSchool = $request->attributes->get('currentSchool');
+        $schoolYearId = $request->route('schoolYearId');
+        $examTypeId = $request->route('examTypeId');
+        $relatedCaExam = $this->examService->getRelatedCaExam($currentSchool, $examTypeId, $schoolYearId);
+        return ApiResponseService::success("Related Ca Exams Fetched Successfully", $relatedCaExam, null, 200);
+    }
     protected function resolveUser()
     {
         foreach (['student', 'teacher', 'schooladmin'] as $guard) {

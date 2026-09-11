@@ -2,7 +2,7 @@
 
 namespace App\Models;
 
-use App\Models\ExamTimetable\Invigilator;
+use App\Models\ExamTimetable\ExamInvigilator;
 use App\Traits\Currency;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Laravel\Sanctum\HasApiTokens;
@@ -101,7 +101,7 @@ class Schooladmin extends Authenticatable
 
     public function examInvigilator()
     {
-        return $this->morphMany(Invigilator::class, 'invigilatable');
+        return $this->morphMany(ExamInvigilator::class, 'invigilatable');
     }
 
     // public function userBadge()

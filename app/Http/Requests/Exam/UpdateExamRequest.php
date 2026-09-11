@@ -6,11 +6,6 @@ use Illuminate\Foundation\Http\FormRequest;
 
 class UpdateExamRequest extends FormRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     *
-     * @return bool
-     */
 
     /**
      * Get the validation rules that apply to the request.
@@ -23,7 +18,7 @@ class UpdateExamRequest extends FormRequest
             'start_date' => 'sometimes|nullable|date',
             'end_date' => 'sometimes|nullable|date',
             'exam_type_id' => 'sometimes|nullable|string|exists:exam_types,id',
-            'weighted_mark' => [
+            'max_score' => [
                 'sometimes',
                 'nullable',
                 'numeric',

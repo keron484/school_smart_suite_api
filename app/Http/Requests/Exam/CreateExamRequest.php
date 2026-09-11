@@ -22,14 +22,14 @@ class CreateExamRequest extends FormRequest
             'start_date' => 'required|date',
             'end_date' => 'required|date',
             'exam_type_id' => 'required|string|exists:exam_types,id',
-            'weighted_mark' => [
+            'max_score' => [
                 'required',
                 'numeric',
                 'regex:/^\d{1,3}(\.\d{1,2})?$/',
                 'min:0',
                 'max:999.99'
             ],
-            'school_year_id' => 'required|string|exists:school_academic_years,id'
+            'school_year_id' => 'required|string|exists:school_academic_years,id',
         ];
     }
 }
