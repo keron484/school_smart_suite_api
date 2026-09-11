@@ -1,0 +1,112 @@
+name: Deploy to VPS
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: Target environment
+        required: true
+        type: choice
+        options:
+          - staging
+          - production
+      image_tag:
+        description: Image tag to deploy (commit SHA). Leave empty to use this workflow commit SHA.
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-${{ inputs.environment }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: self-hosted
+    steps:
+      - name: Resolve environment
+        id: target
+        shell: bash
+        run: |
+          set -e
+          ENV="${{ inputs.environment }}"
+          SHA="${{ inputs.image_tag }}"
+          if [ -z "$SHA" ]; then
+            SHA="${{ github.sha }}"
+          fi
+
+          if [ "$ENV" = "production" ]; then
+            DEPLOY_DIR="/opt/school-smart"
+            CONTAINER="school-smart-app"
+          else
+            DEPLOY_DIR="/opt/school-smart-staging"
+            CONTAINER="school-smart-app-staging"
+          fi
+
+          {
+            echo "environment=$ENV"
+            echo "sha=$SHA"
+            echo "deploy_dir=$DEPLOY_DIR"
+            echo "container=$CONTAINER"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "Deploying $ENV (image SHA=$SHA) to $DEPLOY_DIR as $CONTAINER"
+
+      - name: Login to GHCR
+        shell: bash
+        run: echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_USERNAME }}" --password-stdin
+
+      - name: Write environment file
+        shell: bash
+        env:
+          VPS_ENV_PRODUCTION: ${{ secrets.VPS_ENV_PRODUCTION }}
+          VPS_ENV_STAGING: ${{ secrets.VPS_ENV_STAGING }}
+        run: |
+          set -e
+          DEPLOY_DIR="${{ steps.target.outputs.deploy_dir }}"
+          ENV_NAME="${{ steps.target.outputs.environment }}"
+          mkdir -p "$DEPLOY_DIR"
+
+          if [ "$ENV_NAME" = "production" ]; then
+            printf '%s\n' "$VPS_ENV_PRODUCTION" > "$DEPLOY_DIR/.env"
+          else
+            printf '%s\n' "$VPS_ENV_STAGING" > "$DEPLOY_DIR/.env"
+          fi
+          chmod 600 "$DEPLOY_DIR/.env"
+
+      - name: Deploy container
+        shell: bash
+        run: |
+          set -e
+          DEPLOY_DIR="${{ steps.target.outputs.deploy_dir }}"
+          CONTAINER="${{ steps.target.outputs.container }}"
+          TAG="${{ steps.target.outputs.sha }}"
+          cd "$DEPLOY_DIR"
+
+          REPO_LC="$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')"
+          IMAGE="ghcr.io/${REPO_LC}:${TAG}"
+
+          docker pull "$IMAGE"
+
+          cat > docker-compose.yml <<EOF
+          services:
+            app:
+              image: ${IMAGE}
+              container_name: ${CONTAINER}
+              restart: unless-stopped
+              expose:
+                - "80"
+              env_file:
+                - .env
+              extra_hosts:
+                - "host.docker.internal:host-gateway"
+          networks:
+            default:
+              external: true
+              name: proxy-network
+          EOF
+
+          docker compose up -d --force-recreate
+          docker image prune -af || true

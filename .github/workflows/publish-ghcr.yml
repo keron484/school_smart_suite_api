@@ -1,0 +1,147 @@
+name: Publish image to GHCR
+
+on:
+  push:
+    branches: [staging, master]
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: ghcr-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-push:
+    runs-on: ubuntu-latest
+    outputs:
+      image_tag: ${{ github.sha }}
+      branch: ${{ github.ref_name }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Image name (lowercase for Docker)
+        id: image
+        run: echo "name=ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/metadata-action@v5
+        id: meta
+        with:
+          images: ${{ steps.image.outputs.name }}
+          tags: |
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/master' }}
+            type=raw,value=${{ github.sha }}
+            type=sha,prefix=
+            type=sha,prefix=,format=long
+            type=ref,event=branch
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  deploy:
+    needs: build-push
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/staging' || github.ref == 'refs/heads/master')
+    runs-on: self-hosted
+    concurrency:
+      group: deploy-${{ github.ref == 'refs/heads/master' && 'production' || 'staging' }}
+      cancel-in-progress: true
+    steps:
+      - name: Resolve environment
+        id: target
+        shell: bash
+        run: |
+          set -e
+          if [ "${{ github.ref }}" = "refs/heads/master" ]; then
+            ENV="production"
+            DEPLOY_DIR="/opt/school-smart"
+            CONTAINER="school-smart-app"
+          else
+            ENV="staging"
+            DEPLOY_DIR="/opt/school-smart-staging"
+            CONTAINER="school-smart-app-staging"
+          fi
+
+          {
+            echo "environment=$ENV"
+            echo "deploy_dir=$DEPLOY_DIR"
+            echo "container=$CONTAINER"
+            echo "sha=${{ github.sha }}"
+          } >> "$GITHUB_OUTPUT"
+
+          echo "Deploying $ENV (image SHA=${{ github.sha }}) to $DEPLOY_DIR as $CONTAINER"
+
+      - name: Login to GHCR
+        shell: bash
+        run: echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_USERNAME }}" --password-stdin
+
+      - name: Write environment file
+        shell: bash
+        env:
+          VPS_ENV_PRODUCTION: ${{ secrets.VPS_ENV_PRODUCTION }}
+          VPS_ENV_STAGING: ${{ secrets.VPS_ENV_STAGING }}
+        run: |
+          set -e
+          DEPLOY_DIR="${{ steps.target.outputs.deploy_dir }}"
+          ENV_NAME="${{ steps.target.outputs.environment }}"
+          mkdir -p "$DEPLOY_DIR"
+
+          if [ "$ENV_NAME" = "production" ]; then
+            printf '%s\n' "$VPS_ENV_PRODUCTION" > "$DEPLOY_DIR/.env"
+          else
+            printf '%s\n' "$VPS_ENV_STAGING" > "$DEPLOY_DIR/.env"
+          fi
+          chmod 600 "$DEPLOY_DIR/.env"
+
+      - name: Deploy container
+        shell: bash
+        run: |
+          set -e
+          DEPLOY_DIR="${{ steps.target.outputs.deploy_dir }}"
+          CONTAINER="${{ steps.target.outputs.container }}"
+          TAG="${{ steps.target.outputs.sha }}"
+          cd "$DEPLOY_DIR"
+
+          REPO_LC="$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')"
+          IMAGE="ghcr.io/${REPO_LC}:${TAG}"
+
+          docker pull "$IMAGE"
+
+          cat > docker-compose.yml <<EOF
+          services:
+            app:
+              image: ${IMAGE}
+              container_name: ${CONTAINER}
+              restart: unless-stopped
+              expose:
+                - "80"
+              env_file:
+                - .env
+              extra_hosts:
+                - "host.docker.internal:host-gateway"
+          networks:
+            default:
+              external: true
+              name: proxy-network
+          EOF
+
+          docker compose up -d --force-recreate
+          docker image prune -af || true
